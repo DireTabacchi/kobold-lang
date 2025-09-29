@@ -1,0 +1,6 @@
+var foo: int = 42;
+const bar: float = 3.14;
+var worked := false;
+var first_initial : rune = 'K';
+var is_test : bool = true;
+const name: string = "Kobold";

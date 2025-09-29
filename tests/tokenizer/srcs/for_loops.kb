@@ -1,0 +1,25 @@
+for var i := 0; i < 10; i += 1 {
+    // Blah
+}
+
+var count := 10;
+
+for count <= 10 {
+    // Blah
+}
+
+for item in the_array {
+    // Blah
+}
+
+for {
+    // Blah
+}
+
+for j in [0..<10] {
+    // Blah
+}
+
+for k in [11..=100] {
+    // Blah
+}

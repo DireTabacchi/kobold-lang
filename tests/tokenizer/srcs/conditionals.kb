@@ -1,0 +1,35 @@
+if x == 10 {
+    // Blah
+}
+
+if y >= 3 {
+    // Blah
+} else {
+    // Alternative Blah
+}
+
+if z < 10 {
+    // Blah
+} else if z == 10 {
+    // Blah if z is 10
+} else {
+    // The return of the Alternative Blah
+}
+
+switch status {
+    case .Good {
+        // The Good Blah
+    }
+    case .Bad {
+        // The Bad Blah
+    }
+    case .Ugly {
+        /*
+            The Ugly Blah.
+            Sometimes things do be that way.
+        */
+    }
+    case {
+        // What if the status is something other than those before?
+    }
+}
