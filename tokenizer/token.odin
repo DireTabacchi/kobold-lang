@@ -15,68 +15,75 @@ Pos :: struct {
 
 Token_Kind :: enum {
     // Single-character tokens
-    Semicolon,      // ;
-    L_Brace,        // {
-    R_Brace,        // }
-    L_Bracket,      // [
-    R_Bracket,      // ]
-    L_Paren,        // (
-    R_Paren,        // )
+    Semicolon,              // ;
+    L_Brace,                // {
+    R_Brace,                // }
+    L_Bracket,              // [
+    R_Bracket,              // ]
+    L_Paren,                // (
+    R_Paren,                // )
 
     // Operators
-    Assign,         // =
-    Colon,          // :
-    In,             // in
-    Fat_Arrow,      // =>
-    L_Doc_Comment,  // /!
-    R_Doc_Comment,  // !/
+    Colon,                  // :
+    In,                     // in
+    Fat_Arrow,              // =>
+    L_Doc_Comment,          // /!
+    R_Doc_Comment,          // !/
+    // -- Assignment
+    Assign,                 // =
+    Assign_Add,             // +=
+    Assign_Minus,           // -=
+    Assign_Mult,            // *=
+    Assign_Div,             // /=
+    Assign_Mod,             // %=
+    Assign_Mod_Floor,       // %%=
     // -- Arithmetic
-    Minus,          // -
-    Plus,           // +
-    Mult,           // *
-    Div,            // /
-    Mod,            // %
-    Mod_Floor,      // %%
+    Minus,                  // -
+    Plus,                   // +
+    Mult,                   // *
+    Div,                    // /
+    Mod,                    // %
+    Mod_Floor,              // %%
     // -- Logical
-    Not,            // !
-    Logical_And,    // &&
-    Logical_Or,     // ||
-    Eq,             // ==
-    Neq,            // !=
-    Lt,             // <
-    Gt,             // >
-    Leq,            // <=
-    Geq,            // >=
+    Not,                    // !
+    Logical_And,            // &&
+    Logical_Or,             // ||
+    Eq,                     // ==
+    Neq,                    // !=
+    Lt,                     // <
+    Gt,                     // >
+    Leq,                    // <=
+    Geq,                    // >=
     // -- Range
-    Range_Ex,       // ..<
-    Range_Inc,      // ..=
+    Range_Ex,               // ..<
+    Range_Inc,              // ..=
 
     // Literals
-    Identifier,     // var_name
-    Integer,        // 1234
-    Float,          // 12.34
-    Rune,           // 'K'
-    String,         // "Kobold"
-    True,           // true
-    False,          // false
+    Identifier,             // var_name
+    Integer,                // 1234
+    Float,                  // 12.34
+    Rune,                   // 'K'
+    String,                 // "Kobold"
+    True,                   // true
+    False,                  // false
 
     // Keywords
     // -- Declarations
-    Var,            // var
-    Const,          // const
-    Type,           // type
-    Enum,           // enum
-    Record,         // record
-    Proc,           // proc
-    Array,          // array
-    Map,            // map
-    Set,            // set
+    Var,                    // var
+    Const,                  // const
+    Type,                   // type
+    Enum,                   // enum
+    Record,                 // record
+    Proc,                   // proc
+    Array,                  // array
+    Map,                    // map
+    Set,                    // set
     // -- Control flow
-    For,            // for
-    If,             // if
-    Else,           // else
-    Switch,         // switch
-    Case,           // case
+    For,                    // for
+    If,                     // if
+    Else,                   // else
+    Switch,                 // switch
+    Case,                   // case
     // -- Types
     Type_Integer,           // int
     Type_Unsigned_Integer,  // uint
@@ -95,12 +102,19 @@ token_list := [Token_Kind]string {
     .L_Paren = "(",
     .R_Paren = ")",
 
-    .Assign = "=",
     .Colon = ":",
     .In = "in",
     .Fat_Arrow = "=>",
     .L_Doc_Comment = "/!",
     .R_Doc_Comment = "!/",
+
+    .Assign = "=",
+    .Assign_Add = "+=",
+    .Assign_Minus = "-=",
+    .Assign_Mult = "*=",
+    .Assign_Div = "/=",
+    .Assign_Mod = "%=",
+    .Assign_Mod_Floor = "%%=",
 
     .Minus = "-",
     .Plus = "+",
