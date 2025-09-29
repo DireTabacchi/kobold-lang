@@ -27,6 +27,7 @@ Token_Kind :: enum {
     Assign,         // =
     Colon,          // :
     In,             // in
+    Fat_Arrow,      // =>
     L_Doc_Comment,  // /!
     R_Doc_Comment,  // !/
     // -- Arithmetic
@@ -67,6 +68,9 @@ Token_Kind :: enum {
     Enum,           // enum
     Record,         // record
     Proc,           // proc
+    Array,          // array
+    Map,            // map
+    Set,            // set
     // -- Control flow
     For,            // for
     If,             // if
@@ -94,6 +98,7 @@ token_list := [Token_Kind]string {
     .Assign = "=",
     .Colon = ":",
     .In = "in",
+    .Fat_Arrow = "=>",
     .L_Doc_Comment = "/!",
     .R_Doc_Comment = "!/",
 
@@ -131,6 +136,9 @@ token_list := [Token_Kind]string {
     .Enum = "enum",
     .Record = "record",
     .Proc = "proc",
+    .Array = "array",
+    .Map = "map",
+    .Set = "set",
 
     .For = "for",
     .If = "if",
