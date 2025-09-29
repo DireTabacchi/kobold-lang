@@ -3,17 +3,19 @@ package tokenizer
 Token :: struct {
     type: Token_Kind,
     text: string,
+    val: string,
     pos: Pos,
 }
 
 Pos :: struct {
-    file: string,
     offset: int,
     line: int,
     col: int,
 }
 
 Token_Kind :: enum {
+    Invalid,                // Unknown token/Error token
+    EOF,
     // Single-character tokens
     Semicolon,              // ;
     L_Brace,                // {
@@ -94,6 +96,8 @@ Token_Kind :: enum {
 }
 
 token_list := [Token_Kind]string {
+    .Invalid = "invalid",
+    .EOF = "EOF",
     .Semicolon = ";",
     .L_Brace = "{",
     .R_Brace = "}",
