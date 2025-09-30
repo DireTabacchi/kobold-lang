@@ -51,6 +51,12 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
             } else {
                 advance(t)
                 switch ch {
+                case ':':
+                    kind = .Colon
+                case '=':
+                    kind = .Assign
+                case ';':
+                    kind = .Semicolon
                 case '+':
                     kind = .Plus
                 case '-':
@@ -81,7 +87,7 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
                     advance(t)
                 case:
                     kind = .Invalid
-                    lit = utf8.runes_to_string({t.ch})
+                    lit = utf8.runes_to_string({ch})
                 }
             }
         }
@@ -117,10 +123,29 @@ scan_keyword_or_identifier :: proc(t: ^Tokenizer, start: int) -> (Token_Kind, st
 
     advance(t)
     switch ch := t.src[start]; ch {
+    case 'b':
+        return check_keyword(t, 1, 3, offset, "ool", .Type_Boolean)
+    case 'c':
+        return check_keyword(t, 1, 4, offset, "onst", .Const)
+    case 'f':
+        switch t.src[start+1] {
+        case 'a':
+            return check_keyword(t, 2, 3, offset, "lse", .False)
+        case 'l':
+            return check_keyword(t, 2, 3, offset, "oat", .Type_Float)
+        }
+    case 'i':
+        return check_keyword(t, 1, 2, offset, "nt", .Type_Integer)
+    case 'r':
+        return check_keyword(t, 1, 3, offset, "une", .Type_Rune)
+    case 's':
+        return check_keyword(t, 1, 5, offset, "tring", .Type_String)
     case 't':
         return check_keyword(t, 1, 3, offset, "rue", .True)
-    case 'f':
-        return check_keyword(t, 1, 4, offset, "alse", .False)
+    case 'u':
+        return check_keyword(t, 1, 3, offset, "int", .Type_Unsigned_Integer)
+    case 'v':
+        return check_keyword(t, 1, 2, offset, "ar", .Var)
     }
 
     lit := t.src[offset:t.offset]
@@ -173,14 +198,14 @@ is_digit :: proc(r: rune) -> bool {
 }
 
 is_alpha :: proc(r: rune) -> bool {
-    return 'a' <= r && r <= 'z' || 'A' <= r && r <= 'Z'
+    return 'a' <= r && r <= 'z' || 'A' <= r && r <= 'Z' || r == '_'
 }
 
-check_keyword :: proc(t: ^Tokenizer, start, length, offset: int, rest: string, kind: Token_Kind) -> (Token_Kind, string) {
-    expected_length := start + length
+check_keyword :: proc(t: ^Tokenizer, start, rest_length, offset: int, rest: string, kind: Token_Kind) -> (Token_Kind, string) {
+    expected_length := start + rest_length
     actual_length := t.offset - offset
 
-    if expected_length == actual_length && rest == t.src[offset+start:][:length] {
+    if expected_length == actual_length && rest == t.src[offset+start:][:rest_length] {
         return kind, t.src[offset:t.offset]
     }
 
