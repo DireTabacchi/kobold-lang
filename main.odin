@@ -15,5 +15,10 @@ main :: proc() {
     tokenizer : kb_tok.Tokenizer
     kb_tok.init(&tokenizer, os.args[1])
 
-    kb_tok.scan(&tokenizer)
+    tokens := kb_tok.scan(&tokenizer)
+    defer delete(tokens)
+    
+    for tok in tokens {
+        fmt.printfln("[Compiler] %v", tok)
+    }
 }

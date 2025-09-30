@@ -31,32 +31,54 @@ init :: proc(t: ^Tokenizer, path: string) {
 }
 
 
-scan :: proc(t: ^Tokenizer) {
-    prefix := "[Tokenizer]"
+scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
+    tokens: [dynamic]Token
     scanloop: for t.offset < len(t.src) {
+        skip_whitespace(t)
         offset := t.offset
         kind: Token_Kind
         lit: string
-        skip_whitespace(t)
         switch ch := t.ch; true {
         case is_digit(ch):
             kind, lit = scan_number(t)
         case:
             if t.ch == utf8.RUNE_EOF {
-                kind = .EOF
-                lit = token_list[.EOF]
-                token := Token{.EOF, token_list[.EOF], Pos{offset, t.line, t.offset - t.line_offset + 1}}
-                fmt.printfln("%s %v", prefix, token)
+                token := Token{.EOF, token_list[.EOF], Pos{offset, t.line, offset - t.line_offset + 1}}
+                append(&tokens, token)
                 break scanloop
             } else {
-                fmt.printfln("Unknown character: %c", ch)
+                advance(t)
+                switch ch {
+                case '+':
+                    kind = .Plus
+                case '-':
+                    kind = .Minus
+                case '*':
+                    kind = .Mult
+                case '/':
+                    kind = .Div
+                case '%':
+                    kind = .Mod
+                    if t.ch == '%' {
+                        advance(t)
+                        kind = .Mod_Floor
+                    }
+                case:
+                    kind = .Invalid
+                    lit = utf8.runes_to_string({t.ch})
+                }
             }
         }
 
-        token := Token{kind, lit, Pos{offset, t.line, t.offset - t.line_offset + 1}}
-        fmt.printfln("%s %v", prefix, token)
+        if lit == "" {
+            lit = token_list[kind]
+        }
+
+        token := Token{kind, lit, Pos{offset, t.line, offset - t.line_offset + 1}}
+        append(&tokens, token)
     }
     fmt.println("finished scanning")
+    return tokens
 }
 
 scan_number :: proc(t: ^Tokenizer) -> (Token_Kind, string) {
