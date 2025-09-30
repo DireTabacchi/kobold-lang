@@ -1,0 +1,11 @@
+const odds: set[int] = {1, 3, 5, 7, 9, 11};
+const primes: set[int] = {1, 3, 5, 7, 11, 13, 17, 19, 23};
+
+var fruits: array[string] = {"apple", "tomato", "mango", "pear", "apricot"};
+
+var phone_numbers: map[string]uint = {
+    "Bob" => 1234567890,
+    "Jacob" => 2345678901,
+    "Jakob" => 3456789012,
+    "Jaron" => 4567890123,
+};
