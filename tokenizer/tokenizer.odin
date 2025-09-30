@@ -58,6 +58,9 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
                     if t.ch == '=' {
                         advance(t)
                         kind = .Eq
+                    } else if t.ch == '>' {
+                        advance(t)
+                        kind = .Fat_Arrow
                     } else {
                         kind = .Assign
                     }
@@ -220,6 +223,8 @@ scan_keyword_or_identifier :: proc(t: ^Tokenizer, start: int) -> (Token_Kind, st
         case 'n':
             return check_keyword(t, 1, 2, offset, "nt", .Type_Integer)
         }
+    case 'm':
+        return check_keyword(t, 1, 2, offset, "ap", .Map)
     case 'p':
         return check_keyword(t, 1, 3, offset, "roc", .Proc)
     case 'r':
@@ -235,7 +240,12 @@ scan_keyword_or_identifier :: proc(t: ^Tokenizer, start: int) -> (Token_Kind, st
             return check_keyword(t, 2, 2, offset, "ne", .Type_Rune)
         }
     case 's':
-        return check_keyword(t, 1, 5, offset, "tring", .Type_String)
+        switch t.src[start+1] {
+        case 'e':
+            return check_keyword(t, 2, 1, offset, "t", .Set)
+        case 't':
+            return check_keyword(t, 2, 4, offset, "ring", .Type_String)
+        }
     case 't':
         switch t.src[start+1] {
         case 'r':
