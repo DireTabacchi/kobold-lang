@@ -69,6 +69,10 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
                     kind = .L_Brace
                 case '}':
                     kind = .R_Brace
+                case '(':
+                    kind = .L_Paren
+                case ')':
+                    kind = .R_Paren
                 case '[':
                     kind = .L_Bracket
                 case ']':
@@ -107,7 +111,12 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
                 case '+':
                     kind = .Plus
                 case '-':
-                    kind = .Minus
+                    if t.ch == '>' {
+                        advance(t)
+                        kind = .Arrow
+                    } else {
+                        kind = .Minus
+                    }
                 case '*':
                     kind = .Mult
                 case '/':
@@ -205,11 +214,23 @@ scan_keyword_or_identifier :: proc(t: ^Tokenizer, start: int) -> (Token_Kind, st
             return check_keyword(t, 2, 3, offset, "oat", .Type_Float)
         }
     case 'i':
-        return check_keyword(t, 1, 2, offset, "nt", .Type_Integer)
+        switch t.src[start+1] {
+        case 'f':
+            return .If, token_list[.If]
+        case 'n':
+            return check_keyword(t, 1, 2, offset, "nt", .Type_Integer)
+        }
+    case 'p':
+        return check_keyword(t, 1, 3, offset, "roc", .Proc)
     case 'r':
         switch t.src[start+1] {
         case 'e':
-            return check_keyword(t, 2, 4, offset, "cord", .Record)
+            switch t.src[start+2] {
+            case 'c':
+                return check_keyword(t, 3, 3, offset, "ord", .Record)
+            case 't':
+                return check_keyword(t, 3, 3, offset, "urn", .Return)
+            }
         case 'u':
             return check_keyword(t, 2, 2, offset, "ne", .Type_Rune)
         }

@@ -28,6 +28,7 @@ Token_Kind :: enum {
     // Operators
     Colon,                  // :
     In,                     // in
+    Arrow,                  // ->
     Fat_Arrow,              // =>
     // -- Assignment
     Assign,                 // =
@@ -80,6 +81,7 @@ Token_Kind :: enum {
     Map,                    // map
     Set,                    // set
     // -- Control flow
+    Return,                 // return
     For,                    // for
     If,                     // if
     Else,                   // else
@@ -108,6 +110,7 @@ token_list := [Token_Kind]string {
 
     .Colon = ":",
     .In = "in",
+    .Arrow = "->",
     .Fat_Arrow = "=>",
 
     .Assign = "=",
@@ -157,6 +160,7 @@ token_list := [Token_Kind]string {
     .Map = "map",
     .Set = "set",
 
+    .Return = "return",
     .For = "for",
     .If = "if",
     .Else = "else",

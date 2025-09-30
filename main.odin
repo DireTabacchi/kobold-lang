@@ -18,7 +18,15 @@ main :: proc() {
     tokens := kb_tok.scan(&tokenizer)
     defer delete(tokens)
     
+    fmt.printfln("[Tokens] %-16s\t%-16s\tline:column (offset)", "Token Type", "Literal")
+    fmt.println( "----------------------------------------------------------------------------")
     for tok in tokens {
-        fmt.printfln("[Compiler] %v", tok)
+        lit: string
+        if tok.type == .Doc_Comment {
+            lit = tok.text[:17]
+        } else {
+            lit = tok.text
+        }
+        fmt.printfln("[Tokens] %-16v\t%-16s\t%d:%d (%d)", tok.type, lit, tok.pos.line, tok.pos.col, tok.pos.offset)
     }
 }
