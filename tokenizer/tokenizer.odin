@@ -41,6 +41,8 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
         switch ch := t.ch; true {
         case is_digit(ch):
             kind, lit = scan_number(t)
+        case is_alpha(ch):
+            kind, lit = scan_keyword_or_identifier(t, offset)
         case:
             if t.ch == utf8.RUNE_EOF {
                 token := Token{.EOF, token_list[.EOF], Pos{offset, t.line, offset - t.line_offset + 1}}
@@ -63,6 +65,20 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
                         advance(t)
                         kind = .Mod_Floor
                     }
+                case '\'':
+                    kind = .Rune
+                    lit = utf8.runes_to_string({t.ch})
+                    for t.ch != '\'' {
+                        advance(t)
+                    }
+                    advance(t)
+                case '"':
+                    kind = .String
+                    for t.ch != '"' {
+                        advance(t)
+                    }
+                    lit = t.src[offset+1:t.offset]
+                    advance(t)
                 case:
                     kind = .Invalid
                     lit = utf8.runes_to_string({t.ch})
@@ -91,6 +107,25 @@ scan_number :: proc(t: ^Tokenizer) -> (Token_Kind, string) {
     scan_fraction(t, &kind)
 
     return kind, t.src[offset:t.offset]
+}
+
+scan_keyword_or_identifier :: proc(t: ^Tokenizer, start: int) -> (Token_Kind, string) {
+    offset := t.offset
+    for is_alpha(peek(t)) || is_digit(peek(t)) {
+        advance(t)
+    }
+
+    advance(t)
+    switch ch := t.src[start]; ch {
+    case 't':
+        return check_keyword(t, 1, 3, offset, "rue", .True)
+    case 'f':
+        return check_keyword(t, 1, 4, offset, "alse", .False)
+    }
+
+    lit := t.src[offset:t.offset]
+
+    return .Identifier, lit
 }
 
 scan_fraction :: proc(t: ^Tokenizer, kind: ^Token_Kind) {
@@ -135,4 +170,19 @@ skip_whitespace :: proc(t: ^Tokenizer) {
 
 is_digit :: proc(r: rune) -> bool {
     return '0' <= r && r <= '9'
+}
+
+is_alpha :: proc(r: rune) -> bool {
+    return 'a' <= r && r <= 'z' || 'A' <= r && r <= 'Z'
+}
+
+check_keyword :: proc(t: ^Tokenizer, start, length, offset: int, rest: string, kind: Token_Kind) -> (Token_Kind, string) {
+    expected_length := start + length
+    actual_length := t.offset - offset
+
+    if expected_length == actual_length && rest == t.src[offset+start:][:length] {
+        return kind, t.src[offset:t.offset]
+    }
+
+    return .Identifier, t.src[offset:t.offset]
 }
