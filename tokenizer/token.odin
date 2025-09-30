@@ -3,7 +3,6 @@ package tokenizer
 Token :: struct {
     type: Token_Kind,
     text: string,
-    val: string,
     pos: Pos,
 }
 
