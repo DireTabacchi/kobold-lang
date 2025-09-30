@@ -57,6 +57,12 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
                     kind = .Assign
                 case ';':
                     kind = .Semicolon
+                case',':
+                    kind = .Comma
+                case '{':
+                    kind = .L_Brace
+                case '}':
+                    kind = .R_Brace
                 case '+':
                     kind = .Plus
                 case '-':
@@ -127,6 +133,8 @@ scan_keyword_or_identifier :: proc(t: ^Tokenizer, start: int) -> (Token_Kind, st
         return check_keyword(t, 1, 3, offset, "ool", .Type_Boolean)
     case 'c':
         return check_keyword(t, 1, 4, offset, "onst", .Const)
+    case 'e':
+        return check_keyword(t, 1, 3, offset, "num", .Enum)
     case 'f':
         switch t.src[start+1] {
         case 'a':
@@ -137,11 +145,21 @@ scan_keyword_or_identifier :: proc(t: ^Tokenizer, start: int) -> (Token_Kind, st
     case 'i':
         return check_keyword(t, 1, 2, offset, "nt", .Type_Integer)
     case 'r':
-        return check_keyword(t, 1, 3, offset, "une", .Type_Rune)
+        switch t.src[start+1] {
+        case 'e':
+            return check_keyword(t, 2, 4, offset, "cord", .Record)
+        case 'u':
+            return check_keyword(t, 2, 2, offset, "ne", .Type_Rune)
+        }
     case 's':
         return check_keyword(t, 1, 5, offset, "tring", .Type_String)
     case 't':
-        return check_keyword(t, 1, 3, offset, "rue", .True)
+        switch t.src[start+1] {
+        case 'r':
+            return check_keyword(t, 2, 2, offset, "ue", .True)
+        case 'y':
+            return check_keyword(t, 2, 2, offset, "pe", .Type)
+        }
     case 'u':
         return check_keyword(t, 1, 3, offset, "int", .Type_Unsigned_Integer)
     case 'v':
