@@ -1,4 +1,5 @@
 var foo: int = 42;
+const top: uint = 32;
 const bar: float = 3.14;
 var worked := false;
 var first_initial : rune = 'K';
