@@ -55,7 +55,12 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
                 case ':':
                     kind = .Colon
                 case '=':
-                    kind = .Assign
+                    if t.ch == '=' {
+                        advance(t)
+                        kind = .Eq
+                    } else {
+                        kind = .Assign
+                    }
                 case ';':
                     kind = .Semicolon
                 case',':
@@ -68,6 +73,37 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
                     kind = .L_Bracket
                 case ']':
                     kind = .R_Bracket
+                case '!':
+                    if t.ch == '=' {
+                        advance(t)
+                        kind = .Neq
+                    } else {
+                        kind = .Not
+                    }
+                case '&':
+                    if t.ch == '&' {
+                        advance(t)
+                        kind = .Logical_And
+                    }
+                case '|':
+                    if t.ch == '|' {
+                        advance(t)
+                        kind = .Logical_Or
+                    }
+                case '<':
+                    if t.ch == '=' {
+                        advance(t)
+                        kind = .Leq
+                    } else {
+                        kind = .Lt
+                    }
+                case '>':
+                    if t.ch == '=' {
+                        advance(t)
+                        kind = .Geq
+                    } else {
+                        kind = .Gt
+                    }
                 case '+':
                     kind = .Plus
                 case '-':
