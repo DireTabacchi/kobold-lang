@@ -1,0 +1,15 @@
+var a := true;
+var b := false;
+
+var c := 7;
+var d := 42;
+
+!b;
+a && b;
+a || b;
+a == b;
+a != b;
+c < d;
+c > d;
+c <= d;
+c >= d;
