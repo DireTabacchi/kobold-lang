@@ -1,0 +1,17 @@
+type PersonStatus: enum {
+    Idle,
+    Eating,
+    Gaming = 7,
+    Studying,
+    Sleeping = 99,
+}
+
+type Initial: rune;
+
+type Person: record {
+    age: int;
+    name: string;
+    middle_initial: Initial;
+    height: float;
+    status: PersonStatus;
+}
