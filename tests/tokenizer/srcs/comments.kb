@@ -1,0 +1,27 @@
+// This is a line comment
+
+/!
+    The Infernal Manipulator status ensures that
+    operators always know what the Infernal Manipulator
+    is doing.
+!/
+type InfernalManipulatorStatus: enum {
+    Idle,
+    ManipulatingInferno,
+    PlantingDaisies,
+    EvacuateIsDrill = 665,
+    EvacuateNotADrill = 666,
+    DrainingExcessFluid
+}
+
+/*
+    One must be wary of the infernal Manipulator. It has caused
+    much suffering and heartbreak in the past, but has also bolstered
+    mankind's ability to understand the Universe.
+*/
+type InfernalManipulator: record {
+    location: array[2]float;
+    current_thought: string;
+    working: bool;
+    status: InfernalManipulatorStatus;
+}
