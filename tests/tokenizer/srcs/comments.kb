@@ -12,7 +12,7 @@ type InfernalManipulatorStatus: enum {
     EvacuateIsDrill = 665,
     EvacuateNotADrill = 666,
     DrainingExcessFluid
-}
+};
 
 /*
     One must be wary of the infernal Manipulator. It has caused
@@ -24,4 +24,4 @@ type InfernalManipulator: record {
     current_thought: string;
     working: bool;
     status: InfernalManipulatorStatus;
-}
+};

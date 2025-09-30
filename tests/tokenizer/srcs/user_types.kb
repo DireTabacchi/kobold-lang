@@ -4,7 +4,7 @@ type PersonStatus: enum {
     Gaming = 7,
     Studying,
     Sleeping = 99,
-}
+};
 
 type Initial: rune;
 
@@ -14,4 +14,4 @@ type Person: record {
     middle_initial: Initial;
     height: float;
     status: PersonStatus;
-}
+};
