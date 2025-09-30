@@ -29,8 +29,6 @@ Token_Kind :: enum {
     Colon,                  // :
     In,                     // in
     Fat_Arrow,              // =>
-    L_Doc_Comment,          // /!
-    R_Doc_Comment,          // !/
     // -- Assignment
     Assign,                 // =
     Assign_Add,             // +=
@@ -68,6 +66,7 @@ Token_Kind :: enum {
     String,                 // "Kobold"
     True,                   // true
     False,                  // false
+    Doc_Comment,            // /! docs !/
 
     // Keywords
     // -- Declarations
@@ -110,8 +109,6 @@ token_list := [Token_Kind]string {
     .Colon = ":",
     .In = "in",
     .Fat_Arrow = "=>",
-    .L_Doc_Comment = "/!",
-    .R_Doc_Comment = "!/",
 
     .Assign = "=",
     .Assign_Add = "+=",
@@ -148,6 +145,7 @@ token_list := [Token_Kind]string {
     .String = "string",
     .True = "true",
     .False = "false",
+    .Doc_Comment = "doc comment",
 
     .Var = "var",
     .Const = "const",

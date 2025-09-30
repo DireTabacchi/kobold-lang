@@ -38,6 +38,7 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
         offset := t.offset
         kind: Token_Kind
         lit: string
+        pos: Pos
         switch ch := t.ch; true {
         case is_digit(ch):
             kind, lit = scan_number(t)
@@ -63,6 +64,10 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
                     kind = .L_Brace
                 case '}':
                     kind = .R_Brace
+                case '[':
+                    kind = .L_Bracket
+                case ']':
+                    kind = .R_Bracket
                 case '+':
                     kind = .Plus
                 case '-':
@@ -70,7 +75,20 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
                 case '*':
                     kind = .Mult
                 case '/':
-                    kind = .Div
+                    if t.ch == '/' {
+                        skip_comment(t)
+                        continue
+                    } else if t.ch == '!' {
+                        advance(t)
+                        kind = .Doc_Comment
+                        break
+                    } else if t.ch == '*' {
+                        advance(t)
+                        skip_block_comment(t)
+                        continue
+                    } else {
+                        kind = .Div
+                    }
                 case '%':
                     kind = .Mod
                     if t.ch == '%' {
@@ -102,7 +120,13 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
             lit = token_list[kind]
         }
 
-        token := Token{kind, lit, Pos{offset, t.line, offset - t.line_offset + 1}}
+        pos = Pos{offset, t.line, offset - t.line_offset + 1}
+
+        if kind == .Doc_Comment {
+            lit = doc_comment(t, t.offset)
+        }
+
+        token := Token{kind, lit, pos}
         append(&tokens, token)
     }
     fmt.println("finished scanning")
@@ -129,6 +153,8 @@ scan_keyword_or_identifier :: proc(t: ^Tokenizer, start: int) -> (Token_Kind, st
 
     advance(t)
     switch ch := t.src[start]; ch {
+    case 'a':
+        return check_keyword(t, 1, 4, offset, "rray", .Array)
     case 'b':
         return check_keyword(t, 1, 3, offset, "ool", .Type_Boolean)
     case 'c':
@@ -209,6 +235,34 @@ skip_whitespace :: proc(t: ^Tokenizer) {
             return
         }
     }
+}
+
+skip_comment :: proc(t: ^Tokenizer) {
+    for t.ch != '\n' {
+        advance(t)
+    }
+}
+
+skip_block_comment :: proc(t: ^Tokenizer) {
+    for t.ch != '*' {
+        advance(t)
+    }
+    advance(t)
+    advance(t)
+}
+
+doc_comment :: proc(t: ^Tokenizer, offset: int) -> string {
+
+    for t.ch != '!' {
+        advance(t)
+    }
+
+    dc := t.src[offset:t.offset]
+
+    advance(t)
+    advance(t)
+
+    return dc
 }
 
 is_digit :: proc(r: rune) -> bool {
