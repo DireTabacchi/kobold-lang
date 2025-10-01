@@ -1,0 +1,10 @@
+type Person: record {
+    name: string;
+    age: int;
+};
+
+var niklaus := Person{
+    "Niklaus Wirth", 89,
+};
+
+niklaus.name;

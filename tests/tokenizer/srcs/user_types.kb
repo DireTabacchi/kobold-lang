@@ -3,6 +3,7 @@ type PersonStatus: enum {
     Eating,
     Gaming = 7,
     Studying,
+    Programming,
     Sleeping = 99,
 };
 
@@ -15,3 +16,5 @@ type Person: record {
     height: float;
     status: PersonStatus;
 };
+
+var my_status := PersonStatus.Programming;

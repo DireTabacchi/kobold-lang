@@ -1,0 +1,7 @@
+assign = "test";
+assign_add += 2;
+assign_minus -= 3;
+assign_mult *= 4;
+assign_div /= 5;
+assign_mod %= 6;
+assign_mod_floor %%= 7;

@@ -1,0 +1,17 @@
+switch status {
+    case .Good {
+        // The Good Blah
+    }
+    case .Bad {
+        // The Bad Blah
+    }
+    case .Ugly {
+        /*
+            The Ugly Blah.
+            Sometimes things do be that way.
+        */
+    }
+    case {
+        // What if the status is something other than those before?
+    }
+}
