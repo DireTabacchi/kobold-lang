@@ -8,31 +8,15 @@ import "core:strings"
 import tk "../../tokenizer"
 
 Test_Src_Selector :: enum {
-    Arithmetic_Ops,
-    Collections,
-    Comments,
-    Conditionals,
-    For_Loops,
-    Logic_Operators,
+    Assign_Ops,
     Numbers,
-    Procs,
-    Simple_Decl,
-    Simple_Lit,
-    User_Types,
+    Record,
 }
 
 test_srcs :: [Test_Src_Selector]string {
-    .Arithmetic_Ops =   "tests/tokenizer/srcs/arithmetic_operators.kb",
-    .Collections =      "tests/tokenizer/srcs/collections.kb",
-    .Comments =         "tests/tokenizer/srcs/comments.kb",
-    .Conditionals =     "tests/tokenizer/srcs/conditionals.kb",
-    .For_Loops =        "tests/tokenizer/srcs/for_loops.kb",
-    .Logic_Operators =  "tests/tokenizer/srcs/logic_operators.kb",
+    .Assign_Ops =       "tests/tokenizer/srcs/assign_ops.kb",
     .Numbers =          "tests/tokenizer/srcs/numbers.kb",
-    .Procs =            "tests/tokenizer/srcs/procs.kb",
-    .Simple_Decl =      "tests/tokenizer/srcs/simple_declaration.kb",
-    .Simple_Lit =       "tests/tokenizer/srcs/simple_literals.kb",
-    .User_Types =       "tests/tokenizer/srcs/user_types.kb",
+    .Record =           "tests/tokenizer/srcs/record.kb",
 }
 
 @(test)
@@ -50,10 +34,111 @@ tokenize_numbers_test :: proc(t: ^testing.T) {
         tk.Token{.EOF, "EOF", tk.Pos{33, 2, 11}}
     }
 
-    error_msg_builder := strings.builder_make()
-
     tok: tk.Tokenizer
     tk.tokenizer_init(&tok, test_srcs[.Numbers])
+
+    scanned_tokens := tk.scan(&tok)
+    defer delete(scanned_tokens)
+
+    testing.expect(t, len(expected) == len(scanned_tokens), "Incorrect number of tokens.")
+
+    for expected_token, i in expected {
+        scanned_token := scanned_tokens[i]
+        testing.expect_value(t, scanned_token, expected_token)
+    }
+
+    tk.tokenizer_destroy(&tok)
+}
+
+@(test)
+tokenize_assign_ops_test :: proc(t: ^testing.T) {
+    expected: []tk.Token = {
+        tk.Token{.Identifier, "assign", tk.Pos{0, 1, 1}},
+        tk.Token{.Assign, "=", tk.Pos{7, 1, 8}},
+        tk.Token{.String, "test", tk.Pos{9, 1, 10}},
+        tk.Token{.Semicolon, ";", tk.Pos{15, 1, 16}},
+        tk.Token{.Identifier, "assign_add", tk.Pos{17, 2, 1}},
+        tk.Token{.Assign_Add, "+=", tk.Pos{28, 2, 12}},
+        tk.Token{.Integer, "2", tk.Pos{31, 2, 15}},
+        tk.Token{.Semicolon, ";", tk.Pos{32, 2, 16}},
+        tk.Token{.Identifier, "assign_minus", tk.Pos{34, 3, 1}},
+        tk.Token{.Assign_Minus, "-=", tk.Pos{47, 3, 14}},
+        tk.Token{.Integer, "3", tk.Pos{50, 3, 17}},
+        tk.Token{.Semicolon, ";", tk.Pos{51, 3, 18}},
+        tk.Token{.Identifier, "assign_mult", tk.Pos{53, 4, 1}},
+        tk.Token{.Assign_Mult, "*=", tk.Pos{65, 4, 13}},
+        tk.Token{.Integer, "4", tk.Pos{68, 4, 16}},
+        tk.Token{.Semicolon, ";", tk.Pos{69, 4, 17}},
+        tk.Token{.Identifier, "assign_div", tk.Pos{71, 5, 1}},
+        tk.Token{.Assign_Div, "/=", tk.Pos{82, 5, 12}},
+        tk.Token{.Integer, "5", tk.Pos{85, 5, 15}},
+        tk.Token{.Semicolon, ";", tk.Pos{86, 5, 16}},
+        tk.Token{.Identifier, "assign_mod", tk.Pos{88, 6, 1}},
+        tk.Token{.Assign_Mod, "%=", tk.Pos{99, 6, 12}},
+        tk.Token{.Integer, "6", tk.Pos{102, 6, 15}},
+        tk.Token{.Semicolon, ";", tk.Pos{103, 6, 16}},
+        tk.Token{.Identifier, "assign_mod_floor", tk.Pos{105, 7, 1}},
+        tk.Token{.Assign_Mod_Floor, "%%=", tk.Pos{122, 7, 18}},
+        tk.Token{.Integer, "7", tk.Pos{126, 7, 22}},
+        tk.Token{.Semicolon, ";", tk.Pos{127, 7, 23}},
+        tk.Token{.EOF, "EOF", tk.Pos{129, 7, 25}},
+    }
+
+    tok: tk.Tokenizer
+    tk.tokenizer_init(&tok, test_srcs[.Assign_Ops])
+
+    scanned_tokens := tk.scan(&tok)
+    defer delete(scanned_tokens)
+
+    testing.expect(t, len(expected) == len(scanned_tokens), "Incorrect number of tokens.")
+
+    for expected_token, i in expected {
+        scanned_token := scanned_tokens[i]
+        testing.expect_value(t, scanned_token, expected_token)
+    }
+
+    tk.tokenizer_destroy(&tok)
+}
+
+@(test)
+tokenize_record_test :: proc(t: ^testing.T) {
+    expected: []tk.Token = {
+        tk.Token{.Type, "type", tk.Pos{0, 1, 1}},
+        tk.Token{.Identifier, "Person", tk.Pos{5, 1, 6}},
+        tk.Token{.Colon, ":", tk.Pos{11, 1, 12}},
+        tk.Token{.Record, "record", tk.Pos{13, 1, 14}},
+        tk.Token{.L_Brace, "{", tk.Pos{20, 1, 21}},
+        tk.Token{.Identifier, "name", tk.Pos{26, 2, 5}},
+        tk.Token{.Colon, ":", tk.Pos{30, 2, 9}},
+        tk.Token{.Type_String, "string", tk.Pos{32, 2, 11}},
+        tk.Token{.Semicolon, ";", tk.Pos{38, 2, 17}},
+        tk.Token{.Identifier, "age", tk.Pos{44, 3, 5}},
+        tk.Token{.Colon, ":", tk.Pos{47, 3, 8}},
+        tk.Token{.Type_Integer, "int", tk.Pos{49, 3, 10}},
+        tk.Token{.Semicolon, ";", tk.Pos{52, 3, 13}},
+        tk.Token{.R_Brace, "}", tk.Pos{54, 4, 1}},
+        tk.Token{.Semicolon, ";", tk.Pos{55, 4, 2}},
+        tk.Token{.Var, "var", tk.Pos{58, 6, 1}},
+        tk.Token{.Identifier, "niklaus", tk.Pos{62, 6, 5}},
+        tk.Token{.Colon, ":", tk.Pos{70, 6, 13}},
+        tk.Token{.Assign, "=", tk.Pos{71, 6, 14}},
+        tk.Token{.Identifier, "Person", tk.Pos{73, 6, 16}},
+        tk.Token{.L_Brace, "{", tk.Pos{79, 6, 22}},
+        tk.Token{.String, "Niklaus Wirth", tk.Pos{85, 7, 5}},
+        tk.Token{.Comma, ",", tk.Pos{100, 7, 20}},
+        tk.Token{.Integer, "89", tk.Pos{102, 7, 22}},
+        tk.Token{.Comma, ",", tk.Pos{104, 7, 24}},
+        tk.Token{.R_Brace, "}", tk.Pos{106, 8, 1}},
+        tk.Token{.Semicolon, ";", tk.Pos{107, 8, 2}},
+        tk.Token{.Identifier, "niklaus", tk.Pos{110, 10, 1}},
+        tk.Token{.Dot, ".", tk.Pos{117, 10, 8}},
+        tk.Token{.Identifier, "name", tk.Pos{118, 10, 9}},
+        tk.Token{.Semicolon, ";", tk.Pos{122, 10, 13}},
+        tk.Token{.EOF, "EOF", tk.Pos{124, 10, 15}},
+    }
+
+    tok: tk.Tokenizer
+    tk.tokenizer_init(&tok, test_srcs[.Record])
 
     scanned_tokens := tk.scan(&tok)
     defer delete(scanned_tokens)
