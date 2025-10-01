@@ -23,7 +23,8 @@ Token_Kind :: enum {
     R_Bracket,              // ]
     L_Paren,                // (
     R_Paren,                // )
-    Comma,
+    Comma,                  // ,
+    Dot,                    // .
 
     // Operators
     Colon,                  // :
@@ -107,6 +108,7 @@ token_list := [Token_Kind]string {
     .L_Paren = "(",
     .R_Paren = ")",
     .Comma = ",",
+    .Dot = ".",
 
     .Colon = ":",
     .In = "in",
