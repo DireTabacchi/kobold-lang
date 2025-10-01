@@ -13,7 +13,7 @@ main :: proc() {
     }
 
     tokenizer : kb_tok.Tokenizer
-    kb_tok.init(&tokenizer, os.args[1])
+    kb_tok.tokenizer_init(&tokenizer, os.args[1])
 
     tokens := kb_tok.scan(&tokenizer)
     defer delete(tokens)

@@ -13,7 +13,7 @@ Tokenizer :: struct {
     line_offset: int,
 }
 
-init :: proc(t: ^Tokenizer, path: string) {
+tokenizer_init :: proc(t: ^Tokenizer, path: string) {
     src, err := os.read_entire_file_or_err(path)
 
     if err != nil {
@@ -30,6 +30,9 @@ init :: proc(t: ^Tokenizer, path: string) {
     advance(t)
 }
 
+tokenizer_destroy :: proc(t: ^Tokenizer) {
+    delete(t.src)
+}
 
 scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
     tokens: [dynamic]Token
@@ -80,6 +83,21 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
                     kind = .L_Bracket
                 case ']':
                     kind = .R_Bracket
+                case '.':
+                    if t.ch == '.' {
+                        peeked := peek(t)
+                        if peeked == '<' {
+                            advance(t)
+                            advance(t)
+                            kind = .Range_Ex
+                        } else if peeked == '=' {
+                            advance(t)
+                            advance(t)
+                            kind = .Range_Inc
+                        }
+                    } else {
+                        kind = .Dot
+                    }
                 case '!':
                     if t.ch == '=' {
                         advance(t)
@@ -112,16 +130,29 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
                         kind = .Gt
                     }
                 case '+':
-                    kind = .Plus
+                    if t.ch == '=' {
+                        advance(t)
+                        kind = .Assign_Add
+                    } else {
+                        kind = .Plus
+                    }
                 case '-':
                     if t.ch == '>' {
                         advance(t)
                         kind = .Arrow
+                    } else if t.ch == '=' {
+                        advance(t)
+                        kind = .Assign_Minus
                     } else {
                         kind = .Minus
                     }
                 case '*':
-                    kind = .Mult
+                    if t.ch == '=' {
+                        advance(t)
+                        kind = .Assign_Mult
+                    } else {
+                        kind = .Mult
+                    }
                 case '/':
                     if t.ch == '/' {
                         skip_comment(t)
@@ -134,14 +165,26 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
                         advance(t)
                         skip_block_comment(t)
                         continue
+                    } else if t.ch == '=' {
+                        advance(t)
+                        kind = .Assign_Div
                     } else {
                         kind = .Div
                     }
                 case '%':
-                    kind = .Mod
                     if t.ch == '%' {
                         advance(t)
-                        kind = .Mod_Floor
+                        if t.ch == '=' {
+                            advance(t)
+                            kind = .Assign_Mod_Floor
+                        } else {
+                            kind = .Mod_Floor
+                        }
+                    } else if t.ch == '=' {
+                        advance(t)
+                        kind = .Assign_Mod
+                    } else {
+                        kind = .Mod
                     }
                 case '\'':
                     kind = .Rune
@@ -193,6 +236,20 @@ scan_number :: proc(t: ^Tokenizer) -> (Token_Kind, string) {
     return kind, t.src[offset:t.offset]
 }
 
+// TODO: Should be invalid to have Float that does not have digits after the period
+scan_fraction :: proc(t: ^Tokenizer, kind: ^Token_Kind) {
+    if t.ch == '.' {
+        if peek(t) == '.' {
+            return
+        }
+        kind^ = .Float
+        advance(t)
+        for is_digit(t.ch) {
+            advance(t)
+        }
+    }
+}
+
 scan_keyword_or_identifier :: proc(t: ^Tokenizer, start: int) -> (Token_Kind, string) {
     offset := t.offset
     for is_alpha(peek(t)) || is_digit(peek(t)) {
@@ -206,22 +263,49 @@ scan_keyword_or_identifier :: proc(t: ^Tokenizer, start: int) -> (Token_Kind, st
     case 'b':
         return check_keyword(t, 1, 3, offset, "ool", .Type_Boolean)
     case 'c':
-        return check_keyword(t, 1, 4, offset, "onst", .Const)
+        if t.offset - start > 1 {
+            switch t.src[start+1] {
+            case 'a':
+                return check_keyword(t, 2, 2, offset, "se", .Case)
+            case 'o':
+                return check_keyword(t, 2, 3, offset, "nst", .Const)
+            }
+        }
     case 'e':
-        return check_keyword(t, 1, 3, offset, "num", .Enum)
+        if t.offset - start > 1 {
+            switch t.src[start+1] {
+            case 'n':
+                return check_keyword(t, 2, 2, offset, "um", .Enum)
+            case 'l':
+                return check_keyword(t, 2, 2, offset, "se", .Else)
+            }
+        }
     case 'f':
-        switch t.src[start+1] {
-        case 'a':
-            return check_keyword(t, 2, 3, offset, "lse", .False)
-        case 'l':
-            return check_keyword(t, 2, 3, offset, "oat", .Type_Float)
+        if t.offset - start > 1 {
+            switch t.src[start+1] {
+            case 'a':
+                return check_keyword(t, 2, 3, offset, "lse", .False)
+            case 'l':
+                return check_keyword(t, 2, 3, offset, "oat", .Type_Float)
+            case 'o':
+                return check_keyword(t, 2, 1, offset, "r", .For)
+            }
         }
     case 'i':
-        switch t.src[start+1] {
-        case 'f':
-            return .If, token_list[.If]
-        case 'n':
-            return check_keyword(t, 1, 2, offset, "nt", .Type_Integer)
+        if t.offset - start > 1 {
+            switch t.src[start+1] {
+            case 'f':
+                return check_keyword(t, 1, 1, offset, "f", .If)
+            case 'n':
+                if t.offset - start > 2 {
+                    switch t.src[start+2] {
+                    case 't':
+                        return check_keyword(t, 2, 1, offset, "t", .Type_Integer)
+                    }
+                } else {
+                    return check_keyword(t, 1, 1, offset, "n", .In)
+                }
+            }
         }
     case 'm':
         return check_keyword(t, 1, 2, offset, "ap", .Map)
@@ -245,6 +329,8 @@ scan_keyword_or_identifier :: proc(t: ^Tokenizer, start: int) -> (Token_Kind, st
             return check_keyword(t, 2, 1, offset, "t", .Set)
         case 't':
             return check_keyword(t, 2, 4, offset, "ring", .Type_String)
+        case 'w':
+            return check_keyword(t, 2, 4, offset, "itch", .Switch)
         }
     case 't':
         switch t.src[start+1] {
@@ -262,16 +348,6 @@ scan_keyword_or_identifier :: proc(t: ^Tokenizer, start: int) -> (Token_Kind, st
     lit := t.src[offset:t.offset]
 
     return .Identifier, lit
-}
-
-scan_fraction :: proc(t: ^Tokenizer, kind: ^Token_Kind) {
-    if t.ch == '.' {
-        kind^ = .Float
-        advance(t)
-        for is_digit(t.ch) {
-            advance(t)
-        }
-    }
 }
 
 advance :: proc(t: ^Tokenizer) {
