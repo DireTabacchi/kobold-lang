@@ -9,12 +9,14 @@ import tk "../../tokenizer"
 
 Test_Src_Selector :: enum {
     Assign_Ops,
+    Const_Decls,
     Numbers,
     Record,
 }
 
 test_srcs :: [Test_Src_Selector]string {
     .Assign_Ops =       "tests/tokenizer/srcs/assign_ops.kb",
+    .Const_Decls =      "tests/tokenizer/srcs/const_decls.kb",
     .Numbers =          "tests/tokenizer/srcs/numbers.kb",
     .Record =           "tests/tokenizer/srcs/record.kb",
 }
@@ -55,7 +57,7 @@ tokenize_assign_ops_test :: proc(t: ^testing.T) {
     expected: []tk.Token = {
         tk.Token{.Identifier, "assign", tk.Pos{0, 1, 1}},
         tk.Token{.Assign, "=", tk.Pos{7, 1, 8}},
-        tk.Token{.String, "test", tk.Pos{9, 1, 10}},
+        tk.Token{.String, "\"test\"", tk.Pos{9, 1, 10}},
         tk.Token{.Semicolon, ";", tk.Pos{15, 1, 16}},
         tk.Token{.Identifier, "assign_add", tk.Pos{17, 2, 1}},
         tk.Token{.Assign_Add, "+=", tk.Pos{28, 2, 12}},
@@ -124,7 +126,7 @@ tokenize_record_test :: proc(t: ^testing.T) {
         tk.Token{.Assign, "=", tk.Pos{71, 6, 14}},
         tk.Token{.Identifier, "Person", tk.Pos{73, 6, 16}},
         tk.Token{.L_Brace, "{", tk.Pos{79, 6, 22}},
-        tk.Token{.String, "Niklaus Wirth", tk.Pos{85, 7, 5}},
+        tk.Token{.String, "\"Niklaus Wirth\"", tk.Pos{85, 7, 5}},
         tk.Token{.Comma, ",", tk.Pos{100, 7, 20}},
         tk.Token{.Integer, "89", tk.Pos{102, 7, 22}},
         tk.Token{.Comma, ",", tk.Pos{104, 7, 24}},
@@ -139,6 +141,55 @@ tokenize_record_test :: proc(t: ^testing.T) {
 
     tok: tk.Tokenizer
     tk.tokenizer_init(&tok, test_srcs[.Record])
+
+    scanned_tokens := tk.scan(&tok)
+    defer delete(scanned_tokens)
+
+    testing.expect(t, len(expected) == len(scanned_tokens), "Incorrect number of tokens.")
+
+    for expected_token, i in expected {
+        scanned_token := scanned_tokens[i]
+        testing.expect_value(t, scanned_token, expected_token)
+    }
+
+    tk.tokenizer_destroy(&tok)
+}
+
+@(test)
+tokenize_const_decls :: proc(t: ^testing.T) {
+    expected: []tk.Token = {
+        tk.Token{.Const, "const", tk.Pos{0, 1, 1}},
+        tk.Token{.Identifier, "WIDTH", tk.Pos{6, 1, 7}},
+        tk.Token{.Colon, ":", tk.Pos{11, 1, 12}},
+        tk.Token{.Type_Unsigned_Integer, "uint", tk.Pos{13, 1, 14}},
+        tk.Token{.Assign, "=", tk.Pos{18, 1, 19}},
+        tk.Token{.Integer, "1920", tk.Pos{20, 1, 21}},
+        tk.Token{.Semicolon, ";", tk.Pos{24, 1, 25}},
+        tk.Token{.Const, "const", tk.Pos{26, 2, 1}},
+        tk.Token{.Identifier, "HEIGHT", tk.Pos{32, 2, 7}},
+        tk.Token{.Colon, ":", tk.Pos{38, 2, 13}},
+        tk.Token{.Type_Unsigned_Integer, "uint", tk.Pos{40, 2, 15}},
+        tk.Token{.Assign, "=", tk.Pos{45, 2, 20}},
+        tk.Token{.Integer, "1080", tk.Pos{47, 2, 22}},
+        tk.Token{.Semicolon, ";", tk.Pos{51, 2, 26}},
+        tk.Token{.Const, "const", tk.Pos{53, 3, 1}},
+        tk.Token{.Identifier, "INITIAL", tk.Pos{59, 3, 7}},
+        tk.Token{.Colon, ":", tk.Pos{66, 3, 14}},
+        tk.Token{.Type_Rune, "rune", tk.Pos{68, 3, 16}},
+        tk.Token{.Assign, "=", tk.Pos{73, 3, 21}},
+        tk.Token{.Rune, "'K'", tk.Pos{75, 3, 23}},
+        tk.Token{.Semicolon, ";", tk.Pos{78, 3, 26}},
+        tk.Token{.Const, "const", tk.Pos{80, 4, 1}},
+        tk.Token{.Identifier, "REFRESH_RATE", tk.Pos{86, 4, 7}},
+        tk.Token{.Colon, ":", tk.Pos{98, 4, 19}},
+        tk.Token{.Type_Float, "float", tk.Pos{100, 4, 21}},
+        tk.Token{.Assign, "=", tk.Pos{106, 4, 27}},
+        tk.Token{.Float, "59.997", tk.Pos{108, 4, 29}},
+        tk.Token{.Semicolon, ";", tk.Pos{114, 4, 35}},
+        tk.Token{.EOF, "EOF", tk.Pos{116, 4, 37}},
+    }
+    tok: tk.Tokenizer
+    tk.tokenizer_init(&tok, test_srcs[.Const_Decls])
 
     scanned_tokens := tk.scan(&tok)
     defer delete(scanned_tokens)

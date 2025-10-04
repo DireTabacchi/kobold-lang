@@ -1,0 +1,10 @@
+/! Return true if a is greater than b !/
+proc greater(a: int, b: int) -> bool {
+    if a > b {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+greater(7, age);
