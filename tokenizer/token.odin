@@ -68,7 +68,7 @@ Token_Kind :: enum {
     String,                 // "Kobold"
     True,                   // true
     False,                  // false
-    Doc_Comment,            // /! docs !/
+    Doc_Comment,            // /! the doc comment !/
 
     // Keywords
     // -- Declarations

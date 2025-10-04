@@ -1,8 +1,9 @@
 package tokenizer
 
-import "core:unicode/utf8"
-import "core:os"
 import "core:fmt"
+import "core:os"
+import "core:unicode"
+import "core:unicode/utf8"
 
 Tokenizer :: struct {
     src: string,
@@ -11,6 +12,8 @@ Tokenizer :: struct {
     read_offset: int,   // next char, offset+1
     line: int,
     line_offset: int,
+
+    error_count: int,
 }
 
 tokenizer_init :: proc(t: ^Tokenizer, path: string) {
@@ -188,21 +191,15 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
                     }
                 case '\'':
                     kind = .Rune
-                    lit = utf8.runes_to_string({t.ch})
-                    for t.ch != '\'' {
-                        advance(t)
-                    }
-                    advance(t)
+                    lit = scan_rune(t)
+                    //lit = string(t.src[t.offset:t.offset+1])
                 case '"':
                     kind = .String
-                    for t.ch != '"' {
-                        advance(t)
-                    }
-                    lit = t.src[offset+1:t.offset]
-                    advance(t)
+                    lit = scan_string(t)
                 case:
                     kind = .Invalid
                     lit = utf8.runes_to_string({ch})
+                    fmt.printfln(lit)
                 }
             }
         }
@@ -248,6 +245,46 @@ scan_fraction :: proc(t: ^Tokenizer, kind: ^Token_Kind) {
             advance(t)
         }
     }
+}
+
+scan_string :: proc(t: ^Tokenizer) -> string {
+    offset := t.offset-1
+
+    for {
+        ch := t.ch
+        if t.ch == '\n' || t.ch < 0 {
+            error(t, offset, "unterminated string literal")
+        }
+        advance(t)
+        if ch == '\"' {
+            break
+        }
+    }
+
+    return t.src[offset:t.offset]
+}
+
+scan_rune :: proc(t: ^Tokenizer) -> string {
+    offset := t.offset-1
+
+    n := 0
+    for {
+        ch := t.ch
+        if t.ch == '\n' || t.ch < 0 {
+            error(t, offset, "unterminated rune literal")
+        }
+        advance(t)
+        if ch == '\'' {
+            break
+        }
+        n += 1
+    }
+
+    if n != 1 {
+        error(t, offset, "illegal rune literal")
+    }
+
+    return t.src[offset:t.offset]
 }
 
 scan_keyword_or_identifier :: proc(t: ^Tokenizer, start: int) -> (Token_Kind, string) {
@@ -350,6 +387,17 @@ scan_keyword_or_identifier :: proc(t: ^Tokenizer, start: int) -> (Token_Kind, st
     return .Identifier, lit
 }
 
+check_keyword :: proc(t: ^Tokenizer, start, rest_length, offset: int, rest: string, kind: Token_Kind) -> (Token_Kind, string) {
+    expected_length := start + rest_length
+    actual_length := t.offset - offset
+
+    if expected_length == actual_length && rest == t.src[offset+start:][:rest_length] {
+        return kind, t.src[offset:t.offset]
+    }
+
+    return .Identifier, t.src[offset:t.offset]
+}
+
 advance :: proc(t: ^Tokenizer) {
     if t.read_offset < len(t.src) {
         t.offset = t.read_offset
@@ -357,8 +405,20 @@ advance :: proc(t: ^Tokenizer) {
             t.line += 1
             t.line_offset = t.offset
         }
-        t.ch = rune(t.src[t.read_offset])
-        t.read_offset += 1
+        r, w := rune(t.src[t.offset]), 1
+        switch {
+        case r == 0:
+            error(t, t.offset, "illegal NUL character.")
+        case r >= utf8.RUNE_SELF:
+            r, w = utf8.decode_rune_in_string(t.src[t.offset:])
+            if r == utf8.RUNE_ERROR {
+                error(t, t.offset, "illegal UTF-8 encoding")
+            } else if r == utf8.RUNE_BOM {
+                error(t, t.offset, "illegal byte order mark")
+            }
+        }
+        t.read_offset += w
+        t.ch = r
     } else {
         t.offset = len(t.src)
         t.ch = -1
@@ -413,16 +473,15 @@ is_digit :: proc(r: rune) -> bool {
 }
 
 is_alpha :: proc(r: rune) -> bool {
-    return 'a' <= r && r <= 'z' || 'A' <= r && r <= 'Z' || r == '_'
+    if r < utf8.RUNE_SELF {
+        return 'a' <= r && r <= 'z' || 'A' <= r && r <= 'Z' || r == '_'
+    }
+    return unicode.is_letter(r)
 }
 
-check_keyword :: proc(t: ^Tokenizer, start, rest_length, offset: int, rest: string, kind: Token_Kind) -> (Token_Kind, string) {
-    expected_length := start + rest_length
-    actual_length := t.offset - offset
+error :: proc(t: ^Tokenizer, offset: int, msg: string) {
+    pos := Pos{offset, t.line, offset - t.line_offset + 1}
+    fmt.eprintfln("[%d:%d] %s", pos.line, pos.col, msg)
 
-    if expected_length == actual_length && rest == t.src[offset+start:][:rest_length] {
-        return kind, t.src[offset:t.offset]
-    }
-
-    return .Identifier, t.src[offset:t.offset]
+    t.error_count += 1
 }
