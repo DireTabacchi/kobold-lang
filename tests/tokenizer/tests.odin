@@ -5,7 +5,7 @@ import "core:os"
 import "core:log"
 import "core:fmt"
 import "core:strings"
-import tk "../../tokenizer"
+import tk "src:tokenizer"
 
 Test_Src_Selector :: enum {
     Assign_Ops,

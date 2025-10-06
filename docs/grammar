@@ -1,0 +1,131 @@
+Program -> Statement* EOF ;
+
+Statement -> Declaration
+          |  ExprStatement
+          |  AssignStatement
+          |  LoopStatement
+          |  IfStatement
+          |  SwitchStatement
+          |  ReturnStatement ;
+
+Declaration -> Declarator
+            |  TypeDecl
+            |  ProcDecl ;
+
+ExprStatement -> Expr? ";" ;
+
+AssignStatement -> IdentifierSelector ASSIGNOPERATOR Expr ";" ;
+
+LoopStatement "for" ( LoopParams | ForInLoopParams )? "{" Block "}" ;
+
+IfStatement -> "if" Expr "{" Block "}" ElseStatement? ;
+
+SwitchStatement -> "switch" IdentifierSelector "{" SwitchBlock "}" ;
+
+ReturnStatement -> "return" Expr? ";" ;
+
+Declarator -> ( "var" | "const" ) IDENTIFIER ":" TypeSpecifier? DeclaratorExpr? ";" ;
+
+TypeDecl -> "type" IDENTIFIER ":" ( EnumDecl | RecordDecl | TypeSpecifier ) ";" ;
+
+ProcDecl -> "proc" IDENTIFIER "(" IdentifierDeclaratorList? ")" ProcReturnDecl? "{" Block "}" ;
+
+ProcReturnDecl -> "->" TypeSpecifier ;
+
+ProcParamList -> IdentifierDeclarator ","?
+              |  IdentifierDeclarator "," ProcParamList ;
+
+ElseStatement -> "else" ( IfStatement? | "{" Block "}" ) ;
+
+LoopParams -> ConditionalLoopParam | GenericLoopParams ; 
+
+ForInLoopParams -> IdentifierList "in" Iterable ;
+
+Iterable -> IdentifierSelector | RangeExpr ;
+
+ConditionalLoopParam -> Expr ;
+
+GenericLoopParams -> Declarator ";" Expr ";" Expr? ;
+
+SwitchBlock -> CaseStatement* ;
+
+CaseStatement -> "case" Expr? "{" Block "}" ;
+
+Block -> Statement* ;
+
+DeclaratorExpr -> "=" ( Expr | "{" ( ExprList | MapList )? "}" ) ;
+
+ExprList -> Expr ","?
+         |  Expr "," ExprList ;
+
+MapList -> Expr "=>" Expr ","?
+        |  Expr "=>" Expr "," MapList ;
+
+EnumDecl -> "enum" "{" EnumeratorList? "}" ;
+
+RecordDecl -> "record" "{" IdentifierDeclaratorList? "}" ;
+
+EnumeratorList -> IDENTIFIER ","?
+               |  IDENTIFIER "," EnumeratorList ;
+
+Enumerator -> IDENTIFIER
+           |  IDENTIFIER "=" ConstantExpr;
+
+IdentifierDeclaratorList -> IdentifierDeclarator ","?
+                         |  IdentifierDeclarator "," IdentifierDeclaratorList ;
+
+IdentifierDeclarator -> IDENTIFIER ":" TypeSpecifier ;
+
+RangeExpr -> "[" Expr ( "..<" | "..=" ) Expr "]" ;
+
+ConstantExpr -> BoolOrExpr ;
+
+Expr -> BoolOrExpr ;
+
+BoolOrExpr -> BoolAndExpr ( "||" BoolAndExpr )* ;
+
+BoolAndExpr -> EqualityExpr ( "&&" EqualityExpr )* ;
+
+EqualityExpr -> TermExpr ( ( "==" | "!=" ) TermExpr )* ;
+
+TermExpr -> FactorExpr ( ( "-" | "+" ) FactorExpr )* ;
+
+FactorExpr -> UnaryExpr ( ( "/" | "*" | "%" | "%%" ) UnaryExpr )* ;
+
+UnaryExpr -> ( "!" | "-" ) UnaryExpr | ProcCall ;
+
+ProcCall -> IDENTIFIER "(" ArgumentList? ")" | Primary ;
+
+ArgumentList -> ExprList ;
+
+Primary -> INTEGER | FLOAT | STRING | RUNE | BOOLEAN | IdentifierSelector ;
+
+IdentifierList -> IdentifierSelector ","?
+               |  IdentifierSelector "," IdentifierList ;
+
+FieldSelector -> "." IdentifierSelector ;
+
+IdentfierSelector -> IDENTIFIER FieldSelector? ;
+
+TypeSpecifier -> TypeName | CollectionType ;
+
+CollectionType -> ArrayType | SetType | MapType ;
+
+CollectionType -> ("array" | "set" | "map") "[" (UNSIGNED_INTEGER | TypeName) "]" TypeName? ;
+
+TypeName -> "int" | "uint" | "float" | "bool" | "rune" | "string"
+         |  IDENTIFIER ;
+
+# Lexical Grammar
+
+ASSIGNOPERATOR -> "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "%%=" ;
+IDENTIFIER -> ALPHA ALNUM* ;
+UNSIGNED_INTEGER -> DIGIT DIGIT* ;
+INTEGER -> "-" DIGIT DIGIT* ;
+FLOAT -> DIGIT "." DIGIT+ ;
+STRING -> "\"" <any character except "\"">* "\"" ;
+RUNE -> "'" <any character except "'"> "'" ;
+BOOLEAN -> "true" | "false" ;
+ALNUM -> ALPHA | DIGIT ;
+ALPHA -> [_A-Za-z<any valid UTF-8 letter>] ;
+DIGIT -> [0-9] ;
