@@ -1,8 +1,8 @@
 package main
 
-import kb_tok "tokenizer"
 import "core:fmt"
 import "core:os"
+import kb_tok "kobold:tokenizer"
 
 main :: proc() {
     args := os.args

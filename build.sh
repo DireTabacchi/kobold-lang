@@ -1,4 +1,4 @@
 #! /usr/bin/bash
 
 
-odin build src/ -collection:src=src -vet -strict-style -out:kobo
+odin build src/ -collection:kobold=src -vet -strict-style -out:kobo

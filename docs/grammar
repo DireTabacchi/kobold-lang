@@ -98,7 +98,7 @@ ProcCall -> IDENTIFIER "(" ArgumentList? ")" | Primary ;
 
 ArgumentList -> ExprList ;
 
-Primary -> INTEGER | FLOAT | STRING | RUNE | BOOLEAN | IdentifierSelector ;
+Primary -> INTEGER | UNSIGNED_INTEGER | FLOAT | STRING | RUNE | BOOLEAN | IdentifierSelector ;
 
 IdentifierList -> IdentifierSelector ","?
                |  IdentifierSelector "," IdentifierList ;
