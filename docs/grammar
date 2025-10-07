@@ -16,7 +16,7 @@ ExprStatement -> Expr? ";" ;
 
 AssignStatement -> IdentifierSelector ASSIGNOPERATOR Expr ";" ;
 
-LoopStatement "for" ( LoopParams | ForInLoopParams )? "{" Block "}" ;
+LoopStatement -> "for" ( LoopParams | ForInLoopParams )? "{" Block "}" ;
 
 IfStatement -> "if" Expr "{" Block "}" ElseStatement? ;
 
@@ -98,7 +98,7 @@ ProcCall -> IDENTIFIER "(" ArgumentList? ")" | Primary ;
 
 ArgumentList -> ExprList ;
 
-Primary -> INTEGER | UNSIGNED_INTEGER | FLOAT | STRING | RUNE | BOOLEAN | IdentifierSelector ;
+Primary -> INTEGER | FLOAT | STRING | RUNE | BOOLEAN | IdentifierSelector ;
 
 IdentifierList -> IdentifierSelector ","?
                |  IdentifierSelector "," IdentifierList ;
@@ -111,7 +111,7 @@ TypeSpecifier -> TypeName | CollectionType ;
 
 CollectionType -> ArrayType | SetType | MapType ;
 
-CollectionType -> ("array" | "set" | "map") "[" (UNSIGNED_INTEGER | TypeName) "]" TypeName? ;
+CollectionType -> ("array" | "set" | "map") "[" (INTEGER | TypeName) "]" TypeName? ;
 
 TypeName -> "int" | "uint" | "float" | "bool" | "rune" | "string"
          |  IDENTIFIER ;
@@ -120,8 +120,7 @@ TypeName -> "int" | "uint" | "float" | "bool" | "rune" | "string"
 
 ASSIGNOPERATOR -> "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "%%=" ;
 IDENTIFIER -> ALPHA ALNUM* ;
-UNSIGNED_INTEGER -> DIGIT DIGIT* ;
-INTEGER -> "-" DIGIT DIGIT* ;
+INTEGER -> "-"? DIGIT DIGIT* ;
 FLOAT -> DIGIT "." DIGIT+ ;
 STRING -> "\"" <any character except "\"">* "\"" ;
 RUNE -> "'" <any character except "'"> "'" ;
