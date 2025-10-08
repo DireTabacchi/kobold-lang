@@ -7,6 +7,8 @@ import "kobold:tokenizer"
 import "kobold:parser"
 import "kobold:ast"
 
+KOBOLD_VERSION :: "0.0.22" // Since commit c34c5f
+
 main :: proc() {
     args := os.args
 
