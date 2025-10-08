@@ -1,5 +1,7 @@
 package ast
 
+import "base:intrinsics"
+import "core:mem"
 import "kobold:tokenizer"
 
 Node :: struct {
@@ -8,13 +10,19 @@ Node :: struct {
     derived: ^Node,
 }
 
-Statement :: struct {
+Program :: struct {
     using node: Node,
+
+    stmts: [dynamic]^Statement,
+}
+
+Statement :: struct {
+    using base: Node,
     derived_statement: Any_Statement,
 }
 
 Expression :: struct {
-    using node: Node,
+    using base: Node,
     derived_expression: Any_Expression,
 }
 
@@ -23,19 +31,24 @@ Declaration :: struct {
 }
 
 Declarator :: struct {
-    using node: Declaration,
+    using node: Statement,
     name: string,
     type: tokenizer.Token_Kind,
-    value: ^Expr,
+    value: ^Expression,
 
     is_mutable: bool,
 }
 
+Expression_Statement :: struct {
+    using node: Statement,
+    expr: ^Expression,
+}
+
 Binary_Expression :: struct {
     using node: Expression,
-    left: ^Expr,
+    left: ^Expression,
     op: tokenizer.Token,
-    right: ^Expr,
+    right: ^Expression,
 }
 
 Unary_Expression :: struct {
@@ -57,6 +70,7 @@ Identifier :: struct {
 
 Any_Statement :: union {
     ^Declaration,
+    ^Expression_Statement,
 }
 
 Any_Expression :: union {
@@ -64,4 +78,19 @@ Any_Expression :: union {
     ^Unary_Expression,
     ^Literal,
     ^Identifier,
+}
+
+new :: proc($T: typeid, start, end: tokenizer.Pos) -> ^T {
+    node, _ := mem.new(T)
+    node.start = start
+    node.end = end
+    node.derived = node
+    when intrinsics.type_has_field(T, "derived_statement") {
+        node.derived_statement = node
+    }
+    when intrinsics.type_has_field(T, "derived_expression") {
+        node.derived_expression = node
+    }
+
+    return node
 }

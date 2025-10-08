@@ -1,8 +1,11 @@
 package main
 
+import "base:intrinsics"
 import "core:fmt"
 import "core:os"
-import kb_tok "kobold:tokenizer"
+import "kobold:tokenizer"
+import "kobold:parser"
+import "kobold:ast"
 
 main :: proc() {
     args := os.args
@@ -12,22 +15,32 @@ main :: proc() {
         os.exit(1)
     }
 
-    tokenizer : kb_tok.Tokenizer
-    kb_tok.tokenizer_init(&tokenizer, os.args[1])
-    defer kb_tok.tokenizer_destroy(&tokenizer)
+    tok : tokenizer.Tokenizer
+    tokenizer.tokenizer_init(&tok, os.args[1])
+    defer tokenizer.tokenizer_destroy(&tok)
 
-    tokens := kb_tok.scan(&tokenizer)
+    tokens := tokenizer.scan(&tok)
     defer delete(tokens)
     
     fmt.printfln("[Tokens] %-16s\t%-16s\tline:column (offset)", "Token Type", "Literal")
     fmt.println( "----------------------------------------------------------------------------")
-    for tok in tokens {
+    for token in tokens {
         lit: string
-        if tok.type == .Doc_Comment {
-            lit = tok.text[:17]
+        if token.type == .Doc_Comment {
+            lit = token.text[:17]
         } else {
-            lit = tok.text
+            lit = token.text
         }
-        fmt.printfln("[Tokens] %-16v\t%-16s\t%d:%d (%d)", tok.type, lit, tok.pos.line, tok.pos.col, tok.pos.offset)
+        fmt.printfln("[Tokens] %-16v\t%-16s\t%d:%d (%d)", token.type, lit, token.pos.line, token.pos.col, token.pos.offset)
     }
+
+    fmt.println()
+
+    p : parser.Parser
+    parser.parser_init(&p, tokens[:])
+    parser.parse(&p)
+
+    printer: ast.AST_Printer
+    ast.printer_init(&printer)
+    ast.print_ast(&printer, p.prog)
 }
