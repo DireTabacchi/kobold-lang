@@ -40,6 +40,10 @@ main :: proc() {
     parser.parser_init(&p, tokens[:])
     parser.parse(&p)
 
+    if p.error_count > 0 {
+        return
+    }
+
     printer: ast.AST_Printer
     ast.printer_init(&printer)
     ast.print_ast(&printer, p.prog)

@@ -1,0 +1,7 @@
+//no_param_test();
+//fibonacci(4);
+//two_params(1, 2);
+//three_params(1, 2 + 3, 4);
+//four_params_trailing(1 + 2 * 3, 4, 5 / 6, 7,);
+width / calc_height(2012);
+PI * big_calculation(7.23, 4.51);

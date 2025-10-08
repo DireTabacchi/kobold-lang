@@ -57,6 +57,12 @@ Unary_Expression :: struct {
     expr: ^Expression,
 }
 
+Proc_Call :: struct {
+    using node: Expression,
+    name: string,
+    args: []^Expression,
+}
+
 Literal :: struct {
     using node: Expression,
     type: tokenizer.Token_Kind,
@@ -68,6 +74,12 @@ Identifier :: struct {
     name: string,
 }
 
+Selector :: struct {
+    using node: Expression,
+    ident: string,
+    field: ^Expression,
+}
+
 Any_Statement :: union {
     ^Declaration,
     ^Expression_Statement,
@@ -76,8 +88,10 @@ Any_Statement :: union {
 Any_Expression :: union {
     ^Binary_Expression,
     ^Unary_Expression,
+    ^Proc_Call,
     ^Literal,
     ^Identifier,
+    ^Selector,
 }
 
 new :: proc($T: typeid, start, end: tokenizer.Pos) -> ^T {

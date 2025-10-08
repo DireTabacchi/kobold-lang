@@ -84,6 +84,28 @@ print_expr :: proc(ap: ^AST_Printer, expr: Any_Expression) {
         defer ap.indent_lvl -= 1
         write_tabs(ap)
         fmt.sbprintfln(&ap.builder, "\u2514name: %s", ex.name)
+    case ^Proc_Call:
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514Procedure Call:\n")
+        ap.indent_lvl += 1
+        defer ap.indent_lvl -= 1
+        write_tabs(ap)
+        fmt.sbprintfln(&ap.builder, "\u251Cname: %s", ex.name)
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514args:\n")
+        for arg in ex.args {
+            print_expr(ap, arg.derived_expression)
+        }
+    case ^Selector:
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514Identifier Selector:\n")
+        ap.indent_lvl += 1
+        defer ap.indent_lvl -= 1
+        write_tabs(ap)
+        fmt.sbprintfln(&ap.builder, "\u251Cident: %s", ex.ident)
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514field:\n")
+        print_expr(ap, ex.field.derived_expression)
     }
 }
 
