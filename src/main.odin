@@ -11,7 +11,7 @@ import "kobold:ast"
 //import "kobold:code"
 import "kobold:compiler"
 
-KOBOLD_VERSION :: "0.0.23" // Since commit 78b0d7
+KOBOLD_VERSION :: "0.0.25" // Since commit 78b0d7
 
 main :: proc() {
     when ODIN_DEBUG {   // From Odin Overview
