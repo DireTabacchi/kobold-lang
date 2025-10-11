@@ -16,6 +16,10 @@ printer_init :: proc(ap: ^AST_Printer, tab_size: int = 4) {
     ap.tab_size = 4
 }
 
+printer_destroy :: proc(ap: ^AST_Printer) {
+    strings.builder_destroy(&ap.builder)
+}
+
 print_ast :: proc(ap: ^AST_Printer, prog: ^Program) {
     for stmt in prog.stmts {
         strings.write_string(&ap.builder, "Statement:\n")
@@ -25,6 +29,7 @@ print_ast :: proc(ap: ^AST_Printer, prog: ^Program) {
     ast_string := strings.to_string(ap.builder)
     res := strings.expand_tabs(ast_string, ap.tab_size)
     fmt.println(res)
+    delete(res)
 }
 
 print_stmt :: proc(ap: ^AST_Printer, stmt: Any_Statement) {

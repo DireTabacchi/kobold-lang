@@ -3,15 +3,43 @@ package main
 import "base:intrinsics"
 import "core:fmt"
 import "core:os"
+import "core:mem"
+
 import "kobold:tokenizer"
 import "kobold:parser"
 import "kobold:ast"
-import "kobold:code"
+//import "kobold:code"
 import "kobold:compiler"
 
 KOBOLD_VERSION :: "0.0.23" // Since commit 78b0d7
 
 main :: proc() {
+    when ODIN_DEBUG {   // From Odin Overview
+        track: mem.Tracking_Allocator
+        mem.tracking_allocator_init(&track, context.allocator)
+        context.allocator = mem.tracking_allocator(&track)
+
+        defer {
+            if len(track.allocation_map) > 0 {
+                bytes_leaked := 0
+                fmt.eprintf("=== %v allocations not freed: ===\n", len(track.allocation_map))
+                for _, entry in track.allocation_map {
+                    fmt.eprintfln("- %v bytes @ %v\n", entry.size, entry.location)
+                    bytes_leaked += entry.size
+                }
+                fmt.eprintfln("Leaked a total of %v bytes.", bytes_leaked)
+            }
+
+            if len(track.bad_free_array) > 0 {
+                for entry in track.bad_free_array {
+                    fmt.eprintfln("%v bad free at %v\n", entry.location, entry.memory)
+                }
+            }
+
+            mem.tracking_allocator_destroy(&track)
+        }
+    }
+
     args := os.args
 
     if len(args) < 2 {
@@ -25,24 +53,14 @@ main :: proc() {
 
     tokens := tokenizer.scan(&tok)
     defer delete(tokens)
+
+    tokenizer.print(tokens[:])
     
-    fmt.printfln("[Tokens] %-16s\t%-16s\tline:column (offset)", "Token Type", "Literal")
-    fmt.println( "----------------------------------------------------------------------------")
-    for token in tokens {
-        lit: string
-        if token.type == .Doc_Comment {
-            lit = token.text[:17]
-        } else {
-            lit = token.text
-        }
-        fmt.printfln("[Tokens] %-16v\t%-16s\t%d:%d (%d)", token.type, lit, token.pos.line, token.pos.col, token.pos.offset)
-    }
-
-    fmt.println()
-
     p : parser.Parser
     parser.parser_init(&p, tokens[:])
+    defer parser.parser_destroy(&p)
     parser.parse(&p)
+    defer ast.destroy(p.prog)
 
     if p.error_count > 0 {
         return
@@ -52,23 +70,15 @@ main :: proc() {
     ast.printer_init(&printer)
     ast.print_ast(&printer, p.prog)
 
+    ast.printer_destroy(&printer)
+
     comp := compiler.Compiler{}
 
     compiler.compile(&comp, p.prog)
+    defer compiler.compiler_destroy(&comp)
 
-    fmt.println("Code:")
-    fmt.println(comp.chunk.code)
-    for i := 0; i < len(comp.chunk.code); i += 1 {
-        switch comp.chunk.code[i] {
-        case cast(u8)code.Op_Code.Constant_Int:
-            upper := comp.chunk.code[i+1]
-            lower := comp.chunk.code[i+2]
-            idx : u16 = cast(u16)(upper) << 8
-            idx += cast(u16)lower
-            fmt.printfln("%8X %16s %#8X % 16d", i, "Constant_Int", idx, comp.chunk.constants[idx].value)
-            i += 2
-        }
-    }
+    compiler.print(comp.chunk)
+
     fmt.println("Constants:")
     fmt.println(comp.chunk.constants)
 }
