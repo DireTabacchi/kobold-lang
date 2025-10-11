@@ -9,7 +9,7 @@ import "kobold:ast"
 import "kobold:code"
 import "kobold:compiler"
 
-KOBOLD_VERSION :: "0.0.22" // Since commit c34c5f
+KOBOLD_VERSION :: "0.0.23" // Since commit 78b0d7
 
 main :: proc() {
     args := os.args
