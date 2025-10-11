@@ -31,6 +31,10 @@ parser_init :: proc(p: ^Parser, tokens: []tokenizer.Token) {
     p.prog = new(ast.Program)
 }
 
+parser_destroy :: proc(p: ^Parser) {
+    free(p.prog)
+}
+
 parse :: proc(p: ^Parser) {
     for p.curr_tok.type != .EOF {
         stmt := parse_statement(p)

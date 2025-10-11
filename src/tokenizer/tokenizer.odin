@@ -39,7 +39,7 @@ tokenizer_destroy :: proc(t: ^Tokenizer) {
 
 scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
     tokens: [dynamic]Token
-    scanloop: for t.offset < len(t.src) {
+    scanloop: for {
         skip_whitespace(t)
         offset := t.offset
         kind: Token_Kind
@@ -51,7 +51,7 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
         case is_alpha(ch):
             kind, lit = scan_keyword_or_identifier(t, offset)
         case:
-            if t.ch == utf8.RUNE_EOF {
+            if t.ch == utf8.RUNE_EOF || t.ch == -1 {
                 token := Token{.EOF, token_list[.EOF], Pos{offset, t.line, offset - t.line_offset + 1}}
                 append(&tokens, token)
                 break scanloop
@@ -192,14 +192,12 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
                 case '\'':
                     kind = .Rune
                     lit = scan_rune(t)
-                    //lit = string(t.src[t.offset:t.offset+1])
                 case '"':
                     kind = .String
                     lit = scan_string(t)
                 case:
                     kind = .Invalid
                     lit = utf8.runes_to_string({ch})
-                    fmt.printfln(lit)
                 }
             }
         }
@@ -217,7 +215,6 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
         token := Token{kind, lit, pos}
         append(&tokens, token)
     }
-    fmt.println("finished scanning")
     return tokens
 }
 

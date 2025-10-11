@@ -108,3 +108,29 @@ new :: proc($T: typeid, start, end: tokenizer.Pos) -> ^T {
 
     return node
 }
+
+destroy :: proc(tree: ^Program) {
+    for stmt in tree.stmts {
+        statement_destroy(stmt.derived_statement)
+        delete(tree.stmts)
+    }
+}
+
+statement_destroy :: proc(stmt: Any_Statement) {
+    #partial switch s in stmt {
+    case ^Expression_Statement:
+        expression_destroy(s.expr.derived_expression)
+        free(s)
+    }
+}
+
+expression_destroy :: proc(expr: Any_Expression) {
+    #partial switch e in expr {
+    case ^Binary_Expression:
+        expression_destroy(e.left.derived_expression)
+        expression_destroy(e.right.derived_expression)
+        free(e)
+    case ^Literal:
+        free(e)
+    }
+}
