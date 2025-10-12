@@ -10,7 +10,7 @@ import "kobold:parser"
 import "kobold:ast"
 //import "kobold:compiler"
 
-KOBOLD_VERSION :: "0.0.25" // Since commit 78b0d7
+KOBOLD_VERSION :: "0.0.26" // Since commit e4f265
 
 main :: proc() {
     when ODIN_DEBUG {   // From Odin Overview
