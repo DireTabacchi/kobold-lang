@@ -49,6 +49,13 @@ parse :: proc(p: ^Parser) {
 
 parse_statement :: proc(p: ^Parser) -> ^ast.Statement {
     #partial switch p.curr_tok.type {
+    case .Var, .Const:
+        decl_stmt := parse_decl_statement(p)
+        if decl_stmt == nil {
+            error(p, p.curr_tok.pos, "error parsing declaration statement")
+            return nil
+        }
+        return decl_stmt
     case:
         expr_stmt := parse_expr_statement(p)
         if expr_stmt == nil {
@@ -57,6 +64,121 @@ parse_statement :: proc(p: ^Parser) -> ^ast.Statement {
         }
         return expr_stmt
     }
+    return nil
+}
+
+parse_decl_statement :: proc(p: ^Parser) -> ^ast.Statement {
+    start_pos := p.curr_tok.pos
+    decl_type := p.curr_tok.type
+    #partial switch decl_type {
+    case .Const:
+        advance_token(p)
+        ident := expect_token(p, .Identifier)
+        expect_token(p, .Colon)
+        type := parse_type_specifier(p)
+        assign_tok := expect_token(p, .Assign)
+        val := parse_expression(p)
+        semi_tok := expect_token(p, .Semicolon)
+        ds := ast.new(ast.Declarator, start_pos, end_pos(p.prev_tok))
+        ds.name = ident.text
+        ds.is_mutable = false
+
+        if type == nil {
+            error(p, assign_tok.pos, "expected a type name")
+            type = ast.new(ast.Invalid_Type, assign_tok.pos, assign_tok.pos)
+            ds.type = type
+        } else {
+            ds.type = type
+        }
+        if val == nil {
+            error(p, assign_tok.pos, "expected an expression")
+            val = ast.new(ast.Invalid_Expression, semi_tok.pos, semi_tok.pos)
+            ds.value = val
+        } else {
+            ds.value = val
+        }
+
+        return ds
+    case .Var:
+        advance_token(p)
+        ident := expect_token(p, .Identifier)
+        expect_token(p, .Colon)
+        type := parse_type_specifier(p)
+        if _, is_assign := check_token(p, .Assign); is_assign {
+            advance_token(p)
+        }
+
+        val := parse_expression(p)
+        expect_token(p, .Semicolon)
+        ds := ast.new(ast.Declarator, start_pos, end_pos(p.prev_tok))
+        ds.name = ident.text
+        ds.is_mutable = true
+
+        _, invalid_val := val.derived_expression.(^ast.Invalid_Expression)
+
+        if type == nil && !invalid_val {
+            type = expression_type(val)
+            ds.type = type
+        }
+        if type != nil && invalid_val {
+            ds.type = type
+            ds.value = nil
+            free(val)
+        } else {
+            ds.type = type
+            ds.value = val
+        }
+
+        return ds
+        //} else if type == nil {
+        //    et := expression_type(val)
+        //    ds.type = et
+        //} else {
+        //    if type == nil && val != nil {
+        //        et := expression_type(val)
+        //        ds.type = et
+        //    } else {
+        //        msg := fmt.aprintf("cannot deduce type of var `%s`", ds.name)
+        //        error(p, start_pos, msg)
+        //    }
+        //}
+    }
+    return nil
+}
+
+expression_type :: proc(expr: ^ast.Expression) -> ^ast.Type_Specifier {
+    // TODO: Identifiers will eventually go here, but will require a symbol table in order to correctly parse.
+    #partial switch e in expr.derived_expression {
+    case ^ast.Binary_Expression:
+        return expression_type(e.left)
+    case ^ast.Unary_Expression:
+        return expression_type(e.expr)
+    case ^ast.Literal:
+        ts := ast.new(ast.Builtin_Type, expr.start, expr.end)
+        #partial switch e.type {
+        case .Integer:
+            ts.type = .Type_Integer
+        case .True, .False:
+            ts.type = .Type_Boolean
+        }
+        ts.type = e.type
+        return ts
+    case:
+        it := ast.new(ast.Invalid_Type, expr.start, expr.end)
+        return it
+    }
+}
+
+parse_type_specifier :: proc(p: ^Parser) -> ^ast.Type_Specifier {
+    if p.curr_tok.type == .Assign {
+        return nil
+    }
+
+    start_pos := p.curr_tok.pos
+    t := advance_token(p)
+    ts := ast.new(ast.Builtin_Type, start_pos, end_pos(p.prev_tok))
+    ts.type = t.type
+    return ts
 }
 
 parse_expr_statement :: proc(p: ^Parser) -> ^ast.Statement {
@@ -94,6 +216,11 @@ parse_binary_expr :: proc(p: ^Parser, curr_prec: int) -> ^ast.Expression {
     if expr == nil {
         error(p, p.curr_tok.pos, "error parsing unary expression")
         return nil
+    }
+
+    #partial switch e in expr.derived_expression {
+    case ^ast.Invalid_Expression:
+        return expr
     }
 
     for op_prec := precedence(p.curr_tok); op_prec > curr_prec; op_prec -= 1 {
@@ -145,7 +272,7 @@ parse_primary :: proc(p: ^Parser) -> ^ast.Expression {
         expr := parse_expression(p)
         expect_token(p, .R_Paren) // Note: consume R_Paren
         return expr
-    case .Integer, .Float, .True, .False:
+    case .Integer, .Float, .True, .False, .String:
         lit := parse_literal(p)
         return lit
     case .Identifier:
@@ -159,7 +286,9 @@ parse_primary :: proc(p: ^Parser) -> ^ast.Expression {
         }
     }
 
-    return nil
+    ie := ast.new(ast.Invalid_Expression, p.prev_tok.pos, p.curr_tok.pos)
+    return ie
+    //return nil
 }
 
 parse_ident_selector :: proc(p: ^Parser) -> ^ast.Expression {
@@ -217,7 +346,7 @@ parse_literal :: proc(p: ^Parser) -> ^ast.Expression {
     start_pos := p.curr_tok.pos
 
     #partial switch p.curr_tok.type {
-    case .Integer, .Float, .True, .False:
+    case .Integer, .Float, .True, .False, .String:
         tok := advance_token(p)
         lit := ast.new(ast.Literal, start_pos, end_pos(p.prev_tok))
         lit.type = tok.type
@@ -236,7 +365,9 @@ parse_identifier :: proc(p: ^Parser) -> ^ast.Expression {
         ident.name = tok.text
         return ident
     }
-    return nil
+    fmt.eprintln("could not find valid expression")
+    ie := ast.new(ast.Invalid_Expression, start_pos, end_pos(p.prev_tok))
+    return ie
 }
 
 advance_token :: proc(p: ^Parser) -> tokenizer.Token {
@@ -265,6 +396,10 @@ peek_token :: proc(p: ^Parser) -> tokenizer.Token {
         return p.curr_tok
     }
     return p.toks[p.curr_idx+1]
+}
+
+check_token :: proc(p: ^Parser, type: tokenizer.Token_Kind) -> (tokenizer.Token, bool) {
+    return p.curr_tok, p.curr_tok.type == type
 }
 
 end_pos :: proc(tok: tokenizer.Token) -> tokenizer.Pos {

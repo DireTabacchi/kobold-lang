@@ -26,14 +26,23 @@ Expression :: struct {
     derived_expression: Any_Expression,
 }
 
-Declaration :: struct {
-    using node: Statement,
+Invalid_Expression :: struct {
+    using node: Expression,
 }
+
+Type_Specifier :: struct {
+    using base: Node,
+    derived_type: Any_Type,
+}
+
+//Declaration :: struct {
+//    using node: Statement,
+//}
 
 Declarator :: struct {
     using node: Statement,
     name: string,
-    type: tokenizer.Token_Kind,
+    type: ^Type_Specifier,
     value: ^Expression,
 
     is_mutable: bool,
@@ -80,18 +89,34 @@ Selector :: struct {
     field: ^Expression,
 }
 
+Builtin_Type :: struct {
+    using node: Type_Specifier,
+    type: tokenizer.Token_Kind,
+}
+
+Invalid_Type :: struct {
+    using node: Type_Specifier,
+    tok: tokenizer.Token,
+}
+
 Any_Statement :: union {
-    ^Declaration,
+    ^Declarator,
     ^Expression_Statement,
 }
 
 Any_Expression :: union {
+    ^Invalid_Expression,
     ^Binary_Expression,
     ^Unary_Expression,
     ^Proc_Call,
     ^Literal,
     ^Identifier,
     ^Selector,
+}
+
+Any_Type :: union {
+    ^Invalid_Type,
+    ^Builtin_Type,
 }
 
 new :: proc($T: typeid, start, end: tokenizer.Pos) -> ^T {
@@ -105,6 +130,9 @@ new :: proc($T: typeid, start, end: tokenizer.Pos) -> ^T {
     when intrinsics.type_has_field(T, "derived_expression") {
         node.derived_expression = node
     }
+    when intrinsics.type_has_field(T, "derived_type") {
+        node.derived_type = node
+    }
 
     return node
 }
@@ -112,12 +140,20 @@ new :: proc($T: typeid, start, end: tokenizer.Pos) -> ^T {
 destroy :: proc(tree: ^Program) {
     for stmt in tree.stmts {
         statement_destroy(stmt.derived_statement)
-        delete(tree.stmts)
     }
+    delete(tree.stmts)
 }
 
 statement_destroy :: proc(stmt: Any_Statement) {
     #partial switch s in stmt {
+    case ^Declarator:
+        if s.type != nil {
+            type_specifier_destroy(s.type.derived_type)
+        }
+        if s.value != nil {
+            expression_destroy(s.value.derived_expression)
+        }
+        free(s)
     case ^Expression_Statement:
         expression_destroy(s.expr.derived_expression)
         free(s)
@@ -126,11 +162,24 @@ statement_destroy :: proc(stmt: Any_Statement) {
 
 expression_destroy :: proc(expr: Any_Expression) {
     #partial switch e in expr {
+    case ^Invalid_Expression:
+        free(e)
     case ^Binary_Expression:
         expression_destroy(e.left.derived_expression)
         expression_destroy(e.right.derived_expression)
         free(e)
     case ^Literal:
         free(e)
+    case ^Identifier:
+        free(e)
+    }
+}
+
+type_specifier_destroy :: proc(type_spec: Any_Type) {
+    switch ts in type_spec {
+    case ^Invalid_Type:
+        free(ts)
+    case ^Builtin_Type:
+        free(ts)
     }
 }

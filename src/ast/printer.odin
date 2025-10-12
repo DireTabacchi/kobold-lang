@@ -37,12 +37,44 @@ print_stmt :: proc(ap: ^AST_Printer, stmt: Any_Statement) {
     defer ap.indent_lvl -= 1
 
     #partial switch st in stmt {
+    case ^Declarator:
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514Declarator:\n")
+        ap.indent_lvl += 1
+        defer ap.indent_lvl -= 1
+        write_tabs(ap)
+        fmt.sbprintfln(&ap.builder, "\u251Cmutability: %s", st.is_mutable ? "var" : "const")
+        write_tabs(ap)
+        fmt.sbprintfln(&ap.builder, "\u251Cname: %s", st.name)
+        write_tabs(ap)
+        strings.write_rune(&ap.builder, '\u251C')
+        //fmt.println(st.type)
+        print_type_specifier(ap, st.type.derived_type)
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514value:\n")
+        if st.value != nil {
+            print_expr(ap, st.value.derived_expression)
+        } else {
+            ap.indent_lvl += 1
+            defer ap.indent_lvl -= 1
+            write_tabs(ap)
+            strings.write_string(&ap.builder, "\u2514nil\n")
+        }
     case ^Expression_Statement:
         write_tabs(ap)
         strings.write_string(&ap.builder, "\u2514Expression Statement:\n")
         print_expr(ap, st.expr.derived_expression)
     }
 
+}
+
+print_type_specifier :: proc(ap: ^AST_Printer, type: Any_Type) {
+    switch t in type {
+    case ^Builtin_Type:
+        fmt.sbprintfln(&ap.builder, "type: %s", t.type)
+    case ^Invalid_Type:
+        strings.write_string(&ap.builder, "type: INVALID\n")
+    }
 }
 
 print_expr :: proc(ap: ^AST_Printer, expr: Any_Expression) {

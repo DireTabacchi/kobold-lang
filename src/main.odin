@@ -8,8 +8,7 @@ import "core:mem"
 import "kobold:tokenizer"
 import "kobold:parser"
 import "kobold:ast"
-//import "kobold:code"
-import "kobold:compiler"
+//import "kobold:compiler"
 
 KOBOLD_VERSION :: "0.0.25" // Since commit 78b0d7
 
@@ -72,13 +71,13 @@ main :: proc() {
 
     ast.printer_destroy(&printer)
 
-    comp := compiler.Compiler{}
+    //comp := compiler.Compiler{}
 
-    compiler.compile(&comp, p.prog)
-    defer compiler.compiler_destroy(&comp)
+    //compiler.compile(&comp, p.prog)
+    //defer compiler.compiler_destroy(&comp)
 
-    compiler.print(comp.chunk)
+    //compiler.print(comp.chunk)
 
-    fmt.println("Constants:")
-    fmt.println(comp.chunk.constants)
+    //fmt.println("Constants:")
+    //fmt.println(comp.chunk.constants)
 }
