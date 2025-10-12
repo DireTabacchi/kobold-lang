@@ -1,0 +1,14 @@
+//const width : uint = 1920;
+//const height : uint = width / 2;
+//const name : string = "Dire";
+//const comp_on : bool = true;
+
+//const bad := 3;
+//const worse: bool;
+//const worst;
+
+//var a : int = 12;
+//var x := 3 + 2;
+//var y := a + 32;
+
+var z: bool;
