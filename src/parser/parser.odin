@@ -49,6 +49,7 @@ parse :: proc(p: ^Parser) {
             return
         }
     }
+    fmt.println("=== Finished parsing ===")
 }
 
 parse_statement :: proc(p: ^Parser) -> ^ast.Statement {
@@ -95,9 +96,15 @@ parse_decl_statement :: proc(p: ^Parser) -> ^ast.Statement {
         _, invalid_val := val.derived_expression.(^ast.Invalid_Expression)
 
         if type == nil && !invalid_val {
-            type = expression_type(val)
+            type = expression_type(p^, val)
+            if _, invalid := type.derived_type.(^ast.Invalid_Type); invalid {
+                errorf_msg(p, start_pos, "cannot deduce type of var `%s`", ds.name)
+            }
             ds.type = type
+        } else if type == nil && invalid_val {
+            errorf_msg(p, start_pos, "cannot deduce type of var `%s`", ds.name)
         }
+
         if type != nil && invalid_val {
             ds.type = type
             ds.value = nil
@@ -107,19 +114,21 @@ parse_decl_statement :: proc(p: ^Parser) -> ^ast.Statement {
             ds.value = val
         }
 
+        if _, exists := symbol.symbol_exists(ds.name, p.sym_table[:]); exists {
+            errorf_msg(p, ds.start, "name `%s` already used", ds.name)
+            return ds
+        }
+
+        var_type: tokenizer.Token_Kind
+        #partial switch t in type.derived_type {
+        case ^ast.Builtin_Type:
+            var_type = t.type
+        }
+
+        var_symbol := symbol.Symbol{ ds.name, var_type, true, len(p.sym_table) }
+        append(&p.sym_table, var_symbol)
+
         return ds
-        //} else if type == nil {
-        //    et := expression_type(val)
-        //    ds.type = et
-        //} else {
-        //    if type == nil && val != nil {
-        //        et := expression_type(val)
-        //        ds.type = et
-        //    } else {
-        //        msg := fmt.aprintf("cannot deduce type of var `%s`", ds.name)
-        //        error(p, start_pos, msg)
-        //    }
-        //}
     }
     return nil
 }
@@ -156,11 +165,9 @@ parse_const_decl :: proc(p: ^Parser) -> ^ast.Statement {
         return cd
     }
 
-    for sym in p.sym_table {
-        if cd.name == sym.name {
-            errorf_msg(p, cd.start, "name `%s` already used", cd.name)
-            return cd
-        }
+    if _, exists := symbol.symbol_exists(cd.name, p.sym_table[:]); exists {
+        errorf_msg(p, cd.start, "name `%s` already used", cd.name)
+        return cd
     }
 
     const_type: tokenizer.Token_Kind
@@ -169,28 +176,49 @@ parse_const_decl :: proc(p: ^Parser) -> ^ast.Statement {
         const_type = t.type
     }
 
-    const_symbol := symbol.Symbol { cd.name, const_type, false, len(p.sym_table) }
+    const_symbol := symbol.Symbol{ cd.name, const_type, false, len(p.sym_table) }
     append(&p.sym_table, const_symbol)
 
     return cd
 }
 
-expression_type :: proc(expr: ^ast.Expression) -> ^ast.Type_Specifier {
-    // TODO: Identifiers will eventually go here, but will require a symbol table in order to correctly parse.
+expression_type :: proc(p: Parser, expr: ^ast.Expression) -> ^ast.Type_Specifier {
     #partial switch e in expr.derived_expression {
     case ^ast.Binary_Expression:
-        return expression_type(e.left)
+        return expression_type(p, e.left)
     case ^ast.Unary_Expression:
-        return expression_type(e.expr)
+        return expression_type(p, e.expr)
     case ^ast.Literal:
-        ts := ast.new(ast.Builtin_Type, expr.start, expr.end)
+        type: tokenizer.Token_Kind
         #partial switch e.type {
         case .Integer:
-            ts.type = .Type_Integer
+            type = .Type_Integer
         case .True, .False:
-            ts.type = .Type_Boolean
+            type = .Type_Boolean
+        case .Float:
+            type = .Type_Float
+        case .Rune:
+            type = .Type_Rune
+        case .String:
+            type = .Type_String
+        case:
+            it := ast.new(ast.Invalid_Type, e.start, e.end)
+            return it
         }
-        ts.type = e.type
+
+        ts := ast.new(ast.Builtin_Type, expr.start, expr.end)
+        ts.type = type
+        return ts
+    case ^ast.Identifier:
+        name := e.name
+        type: tokenizer.Token_Kind
+        for sym in p.sym_table {
+            if name == sym.name {
+                type = sym.type
+            }
+        }
+        ts := ast.new(ast.Builtin_Type, expr.start, expr.end)
+        ts.type = type
         return ts
     case:
         it := ast.new(ast.Invalid_Type, expr.start, expr.end)
@@ -414,7 +442,8 @@ expect_token :: proc(p: ^Parser, type: tokenizer.Token_Kind) -> tokenizer.Token 
     prev := p.curr_tok
     if p.curr_tok.type != type {
         pos := p.curr_tok.pos
-        fmt.eprintfln("[%d:%d] expected '%s', got '%s'", pos.line, pos.col, tokenizer.token_list[type], p.curr_tok.text)
+        errorf_msg(p, pos, "expected '%s', got '%s'", tokenizer.token_list[type], p.curr_tok.text)
+        //fmt.eprintfln("[%d:%d] expected '%s', got '%s'", pos.line, pos.col, tokenizer.token_list[type], p.curr_tok.text)
     }
     advance_token(p)
     return prev

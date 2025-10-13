@@ -30,6 +30,9 @@ tokenizer_init :: proc(t: ^Tokenizer, path: string) {
     t.line = len(t.src) > 0 ? 1 : 0
     t.line_offset = 0
 
+    fmt.printfln("Source:\n%s", path)
+    fmt.println(t.src)
+
     advance(t)
 }
 
