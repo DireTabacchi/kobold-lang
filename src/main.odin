@@ -9,7 +9,7 @@ import "kobold:tokenizer"
 import "kobold:parser"
 import "kobold:ast"
 import "kobold:compiler"
-//import "kobold:vm"
+import "kobold:vm"
 
 KOBOLD_VERSION :: "0.0.29"
 
