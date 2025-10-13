@@ -1,5 +1,6 @@
 package compiler
 
+import "core:fmt"
 import "core:strconv"
 
 import "kobold:ast"
@@ -30,21 +31,33 @@ compile :: proc(comp: ^Compiler, prog: ^ast.Program) {
     for statement in prog.stmts {
         #partial switch stmt in statement.derived_statement {
         case ^ast.Declarator:
-            compile_expression(comp, stmt.value.derived_expression)
-            idx : u16 = u16(len(comp.globals))
-            val := resolve_symbol(comp, stmt.name)
-            append(&comp.globals, val)
-            emit_byte(&comp.chunk, u8(Op_Code.SETG))
-            emit_bytes(&comp.chunk, idx)
+            if stmt.value != nil {
+                compile_expression(comp, stmt.value.derived_expression)
+            }
+            make_global(comp, stmt.name)
         case ^ast.Expression_Statement:
             compile_expression(comp, stmt.expr.derived_expression)
         }
     }
     emit_byte(&comp.chunk, byte(Op_Code.RET))
+    fmt.println("=== Finished Compilation ===")
 }
 
-resolve_symbol :: proc(c: ^Compiler, sym_name: string) -> object.Value {
-    val: object.Value
+make_global :: proc(comp: ^Compiler, name: string) {
+    idx : u16 = u16(len(comp.globals))
+    val, _ := resolve_symbol(comp, name)
+    switch val.type {
+    case .Integer:
+        val.value = 0
+    }
+    append(&comp.globals, val)
+    emit_byte(&comp.chunk, u8(Op_Code.SETG))
+    emit_bytes(&comp.chunk, idx)
+}
+
+resolve_symbol :: proc(c: ^Compiler, sym_name: string) -> (val: object.Value, idx: int) {
+    //val: object.Value
+    //idx: int
     for sym in c.sym_table {
         if sym_name == sym.name {
             #partial switch sym.type {
@@ -52,11 +65,12 @@ resolve_symbol :: proc(c: ^Compiler, sym_name: string) -> object.Value {
                 val.type = .Integer
             }
             val.mutable = sym.mutable
+            idx = sym.id
             break
         }
     }
 
-    return val
+    return
 }
 
 compile_expression :: proc(comp: ^Compiler, expr: ast.Any_Expression) {
@@ -91,6 +105,10 @@ compile_expression :: proc(comp: ^Compiler, expr: ast.Any_Expression) {
             val := object.Value{ .Integer, lit_val, false }
             emit_constant(&comp.chunk, val)
         }
+    case ^ast.Identifier:
+        _, idx := resolve_symbol(comp, e.name)
+        emit_byte(&comp.chunk, byte(Op_Code.GETG))
+        emit_bytes(&comp.chunk, u16(idx))
     }
 }
 
