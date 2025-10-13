@@ -43,7 +43,7 @@ print_stmt :: proc(ap: ^AST_Printer, stmt: Any_Statement) {
         ap.indent_lvl += 1
         defer ap.indent_lvl -= 1
         write_tabs(ap)
-        fmt.sbprintfln(&ap.builder, "\u251Cmutability: %s", st.is_mutable ? "var" : "const")
+        fmt.sbprintfln(&ap.builder, "\u251Cmutability: %s", st.mutable ? "var" : "const")
         write_tabs(ap)
         fmt.sbprintfln(&ap.builder, "\u251Cname: %s", st.name)
         write_tabs(ap)

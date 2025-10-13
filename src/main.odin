@@ -9,7 +9,7 @@ import "kobold:tokenizer"
 import "kobold:parser"
 import "kobold:ast"
 import "kobold:compiler"
-import "kobold:vm"
+//import "kobold:vm"
 
 KOBOLD_VERSION :: "0.0.27"
 
@@ -66,6 +66,11 @@ main :: proc() {
         return
     }
 
+    fmt.println("Symbol Table:")
+    for sym in p.sym_table {
+        fmt.println(sym)
+    }
+
     printer: ast.AST_Printer
     ast.printer_init(&printer)
     ast.print_ast(&printer, p.prog)
@@ -73,18 +78,22 @@ main :: proc() {
     ast.printer_destroy(&printer)
 
     comp: compiler.Compiler
+    compiler.compiler_init(&comp, p.sym_table[:])
 
     compiler.compile(&comp, p.prog)
     defer compiler.compiler_destroy(&comp)
 
-    compiler.print(comp.chunk)
+    compiler.print(comp)
 
     fmt.println("Constants:")
     fmt.println(comp.chunk.constants)
 
-    virtual_machine: vm.Virtual_Machine
-    vm.vm_init(&virtual_machine, comp.chunk)
+    fmt.println("Globals:")
+    fmt.println(comp.globals)
 
-    vm.run(&virtual_machine)
-    fmt.printfln("VM stack top: %v", virtual_machine.stack[virtual_machine.sp-1].value)
+    //virtual_machine: vm.Virtual_Machine
+    //vm.vm_init(&virtual_machine, comp.chunk)
+
+    //vm.run(&virtual_machine)
+    //fmt.printfln("VM stack top: %v", virtual_machine.stack[virtual_machine.sp-1].value)
 }

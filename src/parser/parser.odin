@@ -6,6 +6,7 @@ import "core:fmt"
 
 import "kobold:ast"
 import "kobold:tokenizer"
+import "kobold:symbol"
 
 Parser :: struct {
     toks: []tokenizer.Token,
@@ -13,6 +14,8 @@ Parser :: struct {
     prev_tok: tokenizer.Token,
     curr_tok: tokenizer.Token,
     curr_idx: int,
+
+    sym_table: [dynamic]symbol.Symbol,
 
     error_count: int,
 
@@ -33,6 +36,7 @@ parser_init :: proc(p: ^Parser, tokens: []tokenizer.Token) {
 
 parser_destroy :: proc(p: ^Parser) {
     free(p.prog)
+    delete(p.sym_table)
 }
 
 parse :: proc(p: ^Parser) {
@@ -72,33 +76,7 @@ parse_decl_statement :: proc(p: ^Parser) -> ^ast.Statement {
     decl_type := p.curr_tok.type
     #partial switch decl_type {
     case .Const:
-        advance_token(p)
-        ident := expect_token(p, .Identifier)
-        expect_token(p, .Colon)
-        type := parse_type_specifier(p)
-        assign_tok := expect_token(p, .Assign)
-        val := parse_expression(p)
-        semi_tok := expect_token(p, .Semicolon)
-        ds := ast.new(ast.Declarator, start_pos, end_pos(p.prev_tok))
-        ds.name = ident.text
-        ds.is_mutable = false
-
-        if type == nil {
-            error(p, assign_tok.pos, "expected a type name")
-            type = ast.new(ast.Invalid_Type, assign_tok.pos, assign_tok.pos)
-            ds.type = type
-        } else {
-            ds.type = type
-        }
-        if val == nil {
-            error(p, assign_tok.pos, "expected an expression")
-            val = ast.new(ast.Invalid_Expression, semi_tok.pos, semi_tok.pos)
-            ds.value = val
-        } else {
-            ds.value = val
-        }
-
-        return ds
+        return parse_const_decl(p)
     case .Var:
         advance_token(p)
         ident := expect_token(p, .Identifier)
@@ -112,7 +90,7 @@ parse_decl_statement :: proc(p: ^Parser) -> ^ast.Statement {
         expect_token(p, .Semicolon)
         ds := ast.new(ast.Declarator, start_pos, end_pos(p.prev_tok))
         ds.name = ident.text
-        ds.is_mutable = true
+        ds.mutable = true
 
         _, invalid_val := val.derived_expression.(^ast.Invalid_Expression)
 
@@ -144,6 +122,57 @@ parse_decl_statement :: proc(p: ^Parser) -> ^ast.Statement {
         //}
     }
     return nil
+}
+
+parse_const_decl :: proc(p: ^Parser) -> ^ast.Statement {
+    start_pos := p.curr_tok.pos
+    advance_token(p)
+    ident := expect_token(p, .Identifier)
+    expect_token(p, .Colon)
+    type := parse_type_specifier(p)
+    assign_tok := expect_token(p, .Assign)
+    val := parse_expression(p)
+    semi_tok := expect_token(p, .Semicolon)
+    cd := ast.new(ast.Declarator, start_pos, end_pos(p.prev_tok))
+    cd.name = ident.text
+    cd.mutable = false
+
+    if type == nil {
+        error(p, assign_tok.pos, "expected a type name")
+        type = ast.new(ast.Invalid_Type, assign_tok.pos, assign_tok.pos)
+        cd.type = type
+    } else {
+        cd.type = type
+    }
+    if val == nil {
+        error(p, assign_tok.pos, "expected an expression")
+        val = ast.new(ast.Invalid_Expression, semi_tok.pos, semi_tok.pos)
+        cd.value = val
+    } else {
+        cd.value = val
+    }
+
+    if _, t_invalid := cd.type.derived_type.(^ast.Invalid_Type); t_invalid {
+        return cd
+    }
+
+    for sym in p.sym_table {
+        if cd.name == sym.name {
+            errorf_msg(p, cd.start, "name `%s` already used", cd.name)
+            return cd
+        }
+    }
+
+    const_type: tokenizer.Token_Kind
+    #partial switch t in type.derived_type {
+    case ^ast.Builtin_Type:
+        const_type = t.type
+    }
+
+    const_symbol := symbol.Symbol { cd.name, const_type, false, len(p.sym_table) }
+    append(&p.sym_table, const_symbol)
+
+    return cd
 }
 
 expression_type :: proc(expr: ^ast.Expression) -> ^ast.Type_Specifier {
@@ -438,6 +467,12 @@ precedence :: proc(token: tokenizer.Token) -> int {
 error_msg :: proc(p: ^Parser, pos: tokenizer.Pos, msg: string) {
     p.error_count += 1
     fmt.eprintfln("[%d:%d] %s", pos.line, pos.col, msg)
+}
+
+errorf_msg :: proc(p: ^Parser, pos: tokenizer.Pos, fmt_msg: string, args: ..any) {
+    p.error_count += 1
+    fmt.eprintf("[%d:%d] ", pos.line, pos.col)
+    fmt.eprintfln(fmt_msg, ..args)
 }
 
 error :: proc {

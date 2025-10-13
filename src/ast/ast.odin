@@ -45,7 +45,7 @@ Declarator :: struct {
     type: ^Type_Specifier,
     value: ^Expression,
 
-    is_mutable: bool,
+    mutable: bool,
 }
 
 Expression_Statement :: struct {
