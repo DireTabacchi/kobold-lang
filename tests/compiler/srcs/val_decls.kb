@@ -1,0 +1,5 @@
+const x : int = 7;
+const width : int = 1920;
+//const y : uint = 3;
+//const name : string = "The Great Gatsby";
+//var x := 3;
