@@ -168,6 +168,9 @@ expression_destroy :: proc(expr: Any_Expression) {
         expression_destroy(e.left.derived_expression)
         expression_destroy(e.right.derived_expression)
         free(e)
+    case ^Unary_Expression:
+        expression_destroy(e.expr.derived_expression)
+        free(e)
     case ^Literal:
         free(e)
     case ^Identifier:

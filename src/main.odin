@@ -8,9 +8,10 @@ import "core:mem"
 import "kobold:tokenizer"
 import "kobold:parser"
 import "kobold:ast"
-//import "kobold:compiler"
+import "kobold:compiler"
+import "kobold:vm"
 
-KOBOLD_VERSION :: "0.0.26" // Since commit e4f265
+KOBOLD_VERSION :: "0.0.27"
 
 main :: proc() {
     when ODIN_DEBUG {   // From Odin Overview
@@ -71,13 +72,19 @@ main :: proc() {
 
     ast.printer_destroy(&printer)
 
-    //comp := compiler.Compiler{}
+    comp: compiler.Compiler
 
-    //compiler.compile(&comp, p.prog)
-    //defer compiler.compiler_destroy(&comp)
+    compiler.compile(&comp, p.prog)
+    defer compiler.compiler_destroy(&comp)
 
-    //compiler.print(comp.chunk)
+    compiler.print(comp.chunk)
 
-    //fmt.println("Constants:")
-    //fmt.println(comp.chunk.constants)
+    fmt.println("Constants:")
+    fmt.println(comp.chunk.constants)
+
+    virtual_machine: vm.Virtual_Machine
+    vm.vm_init(&virtual_machine, comp.chunk)
+
+    vm.run(&virtual_machine)
+    fmt.printfln("VM stack top: %v", virtual_machine.stack[virtual_machine.sp-1].value)
 }

@@ -7,6 +7,8 @@ import "kobold:code"
 import "kobold:object"
 //import "kobold:tokenizer"
 
+Op_Code :: code.Op_Code
+
 Compiler :: struct {
     chunk: code.Chunk,
 }
@@ -22,6 +24,7 @@ compile :: proc(comp: ^Compiler, prog: ^ast.Program) {
             compile_expression(comp, stmt.expr.derived_expression)
         }
     }
+    emit_byte(&comp.chunk, byte(Op_Code.RET))
 }
 
 compile_expression :: proc(comp: ^Compiler, expr: ast.Any_Expression) {
@@ -31,13 +34,23 @@ compile_expression :: proc(comp: ^Compiler, expr: ast.Any_Expression) {
         compile_expression(comp, e.right.derived_expression)
         #partial switch e.op.type {
         case .Plus:
-            emit_byte(&comp.chunk, byte(code.Op_Code.Add))
+            emit_byte(&comp.chunk, byte(Op_Code.ADD))
         case .Minus:
-            emit_byte(&comp.chunk, byte(code.Op_Code.Subtract))
+            emit_byte(&comp.chunk, byte(Op_Code.SUB))
         case .Mult:
-            emit_byte(&comp.chunk, byte(code.Op_Code.Multiply))
+            emit_byte(&comp.chunk, byte(Op_Code.MULT))
         case .Div:
-            emit_byte(&comp.chunk, byte(code.Op_Code.Divide))
+            emit_byte(&comp.chunk, byte(Op_Code.DIV))
+        case .Mod:
+            emit_byte(&comp.chunk, byte(Op_Code.MOD))
+        case .Mod_Floor:
+            emit_byte(&comp.chunk, byte(Op_Code.MODF))
+        }
+    case ^ast.Unary_Expression:
+        compile_expression(comp, e.expr.derived_expression)
+        #partial switch e.op.type {
+        case .Minus:
+            emit_byte(&comp.chunk, byte(Op_Code.NEG))
         }
     case ^ast.Literal:
         #partial switch e.type {
@@ -52,7 +65,7 @@ compile_expression :: proc(comp: ^Compiler, expr: ast.Any_Expression) {
 emit_constant :: proc (chunk: ^code.Chunk, val: object.Value) {
     idx : u16 = u16(len(chunk.constants))
     append(&chunk.constants, val)
-    emit_byte(chunk, cast(byte)code.Op_Code.PushC)
+    emit_byte(chunk, byte(Op_Code.PUSHC))
     emit_bytes(chunk, idx)
 }
 
