@@ -210,6 +210,8 @@ expression_type :: proc(p: Parser, expr: ^ast.Expression) -> ^ast.Type_Specifier
         #partial switch e.type {
         case .Integer:
             type = .Type_Integer
+        case .Unsigned_Integer:
+            type = .Type_Unsigned_Integer
         case .True, .False:
             type = .Type_Boolean
         case .Float:
@@ -346,7 +348,7 @@ parse_primary :: proc(p: ^Parser) -> ^ast.Expression {
         expr := parse_expression(p)
         expect_token(p, .R_Paren) // Note: consume R_Paren
         return expr
-    case .Integer, .Float, .True, .False, .String, .Rune:
+    case .Integer, .Unsigned_Integer, .Float, .True, .False, .String, .Rune:
         lit := parse_literal(p)
         return lit
     case .Identifier:
@@ -420,7 +422,7 @@ parse_literal :: proc(p: ^Parser) -> ^ast.Expression {
     start_pos := p.curr_tok.pos
 
     #partial switch p.curr_tok.type {
-    case .Integer, .Float, .True, .False, .String, .Rune:
+    case .Integer, .Unsigned_Integer, .Float, .True, .False, .String, .Rune:
         tok := advance_token(p)
         lit := ast.new(ast.Literal, start_pos, end_pos(p.prev_tok))
         lit.type = tok.type

@@ -53,6 +53,8 @@ make_global :: proc(comp: ^Compiler, name: string) {
     switch val.type {
     case .Integer:
         val.value = i64(0)
+    case .Unsigned_Integer:
+        val.value = u64(0)
     case .Float:
         val.value = 0.0
     case .Boolean:
@@ -71,6 +73,8 @@ resolve_symbol :: proc(c: ^Compiler, sym_name: string) -> (val: object.Value, id
             #partial switch sym.type {
             case .Type_Integer:
                 val.type = .Integer
+            case .Type_Unsigned_Integer:
+                val.type = .Unsigned_Integer
             case .Type_Float:
                 val.type = .Float
             case .Type_Boolean:
@@ -119,6 +123,10 @@ compile_expression :: proc(comp: ^Compiler, expr: ast.Any_Expression) {
         case .Integer:
             lit_val, _ := strconv.parse_i64(e.value)
             val := object.Value{ .Integer, lit_val, false }
+            emit_constant(&comp.chunk, val)
+        case .Unsigned_Integer:
+            lit_val, _ := strconv.parse_u64(strings.trim_suffix(e.value, "u"))
+            val := object.Value{ .Unsigned_Integer, lit_val, false }
             emit_constant(&comp.chunk, val)
         case .Float:
             lit_val, _ := strconv.parse_f64(e.value)

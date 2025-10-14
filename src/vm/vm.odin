@@ -93,42 +93,80 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
         b := stack_pop(vm)
         a := stack_pop(vm)
         res: object.Value
-        res.value = a.value.(i64) + b.value.(i64)
+        #partial switch a.type {
+        case .Integer:
+            res.value = a.value.(i64) + b.value.(i64)
+        case .Unsigned_Integer:
+            res.value = a.value.(u64) + b.value.(u64)
+        case .Float:
+            res.value = a.value.(f64) + b.value.(f64)
+        }
         res.type = a.type
         stack_push(vm, res)
     case byte(Op_Code.SUB):
         b := stack_pop(vm)
         a := stack_pop(vm)
         res: object.Value
-        res.value = a.value.(i64) - b.value.(i64)
+        #partial switch a.type {
+        case .Integer:
+            res.value = a.value.(i64) - b.value.(i64)
+        case .Unsigned_Integer:
+            res.value = a.value.(u64) - b.value.(u64)
+        case .Float:
+            res.value = a.value.(f64) - b.value.(f64)
+        }
         res.type = a.type
         stack_push(vm, res)
     case byte(Op_Code.MULT):
         b := stack_pop(vm)
         a := stack_pop(vm)
         res: object.Value
-        res.value = a.value.(i64) * b.value.(i64)
+        #partial switch a.type {
+        case .Integer:
+            res.value = a.value.(i64) * b.value.(i64)
+        case .Unsigned_Integer:
+            res.value = a.value.(u64) * b.value.(u64)
+        case .Float:
+            res.value = a.value.(f64) * b.value.(f64)
+        }
         res.type = a.type
         stack_push(vm, res)
     case byte(Op_Code.DIV):
         b := stack_pop(vm)
         a := stack_pop(vm)
         res: object.Value
-        res.value = a.value.(i64) / b.value.(i64)
+        #partial switch a.type {
+        case .Integer:
+            res.value = a.value.(i64) / b.value.(i64)
+        case .Unsigned_Integer:
+            res.value = a.value.(u64) / b.value.(u64)
+        case .Float:
+            res.value = a.value.(f64) / b.value.(f64)
+        }
         res.type = a.type
         stack_push(vm, res)
     case byte(Op_Code.MOD):
         b := stack_pop(vm)
         a := stack_pop(vm)
         res: object.Value
-        res.value = a.value.(i64) % b.value.(i64)
+        #partial switch a.type {
+        case .Integer:
+            res.value = a.value.(i64) % b.value.(i64)
+        case .Unsigned_Integer:
+            res.value = a.value.(u64) % b.value.(u64)
+        }
         res.type = a.type
         stack_push(vm, res)
     case byte(Op_Code.MODF):
         b := stack_pop(vm)
         a := stack_pop(vm)
         res: object.Value
-        res.value = a.value.(i64) %% b.value.(i64)
+        #partial switch a.type {
+        case .Integer:
+            res.value = a.value.(i64) %% b.value.(i64)
+        case .Unsigned_Integer:
+            res.value = a.value.(u64) %% b.value.(u64)
+        }
         res.type = a.type
         stack_push(vm, res)
     }
