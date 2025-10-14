@@ -1,0 +1,8 @@
+var a := 17u;
+var b := 7.45;
+var c := 12;
+
+var x := a + 73u;
+var y := b / 12.3;
+var z := 100 - c;
+y;
