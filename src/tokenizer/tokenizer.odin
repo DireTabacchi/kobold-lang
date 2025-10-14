@@ -228,6 +228,11 @@ scan_number :: proc(t: ^Tokenizer) -> (Token_Kind, string) {
         advance(t)
     }
 
+    if is_alpha(t.ch) && t.ch == 'u' {
+        advance(t)
+        kind = Token_Kind.Unsigned_Integer
+    }
+
     scan_fraction(t, &kind)
 
     return kind, t.src[offset:t.offset]

@@ -63,6 +63,7 @@ Token_Kind :: enum {
     // Literals
     Identifier,             // var_name
     Integer,                // 1234
+    Unsigned_Integer,       // 1234u
     Float,                  // 12.34
     Rune,                   // 'K'
     String,                 // "Kobold"
@@ -145,6 +146,7 @@ token_list := [Token_Kind]string {
 
     .Identifier = "identifier",
     .Integer = "integer",
+    .Unsigned_Integer = "unsigned integer",
     .Float = "float",
     .Rune = "rune",
     .String = "string",
