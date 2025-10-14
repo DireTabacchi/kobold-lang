@@ -8,8 +8,16 @@ Value :: struct {
 
 Value_Kind :: enum {
     Integer,
+    Float,
+    Boolean,
+    String,
+    Rune,
 }
 
 Value_Type :: union {
     i64,
+    f64,
+    bool,
+    string,
+    rune,
 }

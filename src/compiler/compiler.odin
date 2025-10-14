@@ -2,6 +2,8 @@ package compiler
 
 import "core:fmt"
 import "core:strconv"
+import "core:strings"
+import "core:unicode/utf8"
 
 import "kobold:ast"
 import "kobold:code"
@@ -31,10 +33,13 @@ compile :: proc(comp: ^Compiler, prog: ^ast.Program) {
     for statement in prog.stmts {
         #partial switch stmt in statement.derived_statement {
         case ^ast.Declarator:
+            idx : u16 = u16(len(comp.globals))
+            make_global(comp, stmt.name)
             if stmt.value != nil {
                 compile_expression(comp, stmt.value.derived_expression)
+                emit_byte(&comp.chunk, u8(Op_Code.SETG))
+                emit_bytes(&comp.chunk, idx)
             }
-            make_global(comp, stmt.name)
         case ^ast.Expression_Statement:
             compile_expression(comp, stmt.expr.derived_expression)
         }
@@ -44,25 +49,36 @@ compile :: proc(comp: ^Compiler, prog: ^ast.Program) {
 }
 
 make_global :: proc(comp: ^Compiler, name: string) {
-    idx : u16 = u16(len(comp.globals))
     val, _ := resolve_symbol(comp, name)
     switch val.type {
     case .Integer:
-        val.value = 0
+        val.value = i64(0)
+    case .Float:
+        val.value = 0.0
+    case .Boolean:
+        val.value = false
+    case .String:
+        val.value = ""
+    case .Rune:
+        val.value = rune(0)
     }
     append(&comp.globals, val)
-    emit_byte(&comp.chunk, u8(Op_Code.SETG))
-    emit_bytes(&comp.chunk, idx)
 }
 
 resolve_symbol :: proc(c: ^Compiler, sym_name: string) -> (val: object.Value, idx: int) {
-    //val: object.Value
-    //idx: int
     for sym in c.sym_table {
         if sym_name == sym.name {
             #partial switch sym.type {
             case .Type_Integer:
                 val.type = .Integer
+            case .Type_Float:
+                val.type = .Float
+            case .Type_Boolean:
+                val.type = .Boolean
+            case .Type_String:
+                val.type = .String
+            case .Type_Rune:
+                val.type = .Rune
             }
             val.mutable = sym.mutable
             idx = sym.id
@@ -103,6 +119,22 @@ compile_expression :: proc(comp: ^Compiler, expr: ast.Any_Expression) {
         case .Integer:
             lit_val, _ := strconv.parse_i64(e.value)
             val := object.Value{ .Integer, lit_val, false }
+            emit_constant(&comp.chunk, val)
+        case .Float:
+            lit_val, _ := strconv.parse_f64(e.value)
+            val := object.Value{ .Float, lit_val, false }
+            emit_constant(&comp.chunk, val)
+        case .True, .False:
+            lit_val, _ := strconv.parse_bool(e.value)
+            val := object.Value{ .Boolean, lit_val, false }
+            emit_constant(&comp.chunk, val)
+        case .String:
+            lit_val := strings.trim(e.value, "\"")
+            val := object.Value{ .String, lit_val, false }
+            emit_constant(&comp.chunk, val)
+        case .Rune:
+            lit_val, _ := utf8.decode_rune(strings.trim(e.value, "'"))
+            val := object.Value{ .Rune, lit_val, false }
             emit_constant(&comp.chunk, val)
         }
     case ^ast.Identifier:

@@ -73,62 +73,12 @@ parse_statement :: proc(p: ^Parser) -> ^ast.Statement {
 }
 
 parse_decl_statement :: proc(p: ^Parser) -> ^ast.Statement {
-    start_pos := p.curr_tok.pos
     decl_type := p.curr_tok.type
     #partial switch decl_type {
     case .Const:
         return parse_const_decl(p)
     case .Var:
-        advance_token(p)
-        ident := expect_token(p, .Identifier)
-        expect_token(p, .Colon)
-        type := parse_type_specifier(p)
-        if _, is_assign := check_token(p, .Assign); is_assign {
-            advance_token(p)
-        }
-
-        val := parse_expression(p)
-        expect_token(p, .Semicolon)
-        ds := ast.new(ast.Declarator, start_pos, end_pos(p.prev_tok))
-        ds.name = ident.text
-        ds.mutable = true
-
-        _, invalid_val := val.derived_expression.(^ast.Invalid_Expression)
-
-        if type == nil && !invalid_val {
-            type = expression_type(p^, val)
-            if _, invalid := type.derived_type.(^ast.Invalid_Type); invalid {
-                errorf_msg(p, start_pos, "cannot deduce type of var `%s`", ds.name)
-            }
-            ds.type = type
-        } else if type == nil && invalid_val {
-            errorf_msg(p, start_pos, "cannot deduce type of var `%s`", ds.name)
-        }
-
-        if type != nil && invalid_val {
-            ds.type = type
-            ds.value = nil
-            free(val)
-        } else {
-            ds.type = type
-            ds.value = val
-        }
-
-        if _, exists := symbol.symbol_exists(ds.name, p.sym_table[:]); exists {
-            errorf_msg(p, ds.start, "name `%s` already used", ds.name)
-            return ds
-        }
-
-        var_type: tokenizer.Token_Kind
-        #partial switch t in type.derived_type {
-        case ^ast.Builtin_Type:
-            var_type = t.type
-        }
-
-        var_symbol := symbol.Symbol{ ds.name, var_type, true, len(p.sym_table) }
-        append(&p.sym_table, var_symbol)
-
-        return ds
+        return parse_var_decl(p)
     }
     return nil
 }
@@ -170,6 +120,13 @@ parse_const_decl :: proc(p: ^Parser) -> ^ast.Statement {
         return cd
     }
 
+    expr_type := expression_type(p^, val)
+    type_type, _ := type.derived_type.(^ast.Builtin_Type)
+    if val_type := expr_type.derived_type.(^ast.Builtin_Type); val_type.type != type_type.type {
+        errorf_msg(p, start_pos, "cannot assign value of type `%s` to variable of type `%s`", val_type.type, type_type.type)
+    }
+    free(expr_type)
+
     const_type: tokenizer.Token_Kind
     #partial switch t in type.derived_type {
     case ^ast.Builtin_Type:
@@ -180,6 +137,66 @@ parse_const_decl :: proc(p: ^Parser) -> ^ast.Statement {
     append(&p.sym_table, const_symbol)
 
     return cd
+}
+
+parse_var_decl :: proc(p: ^Parser) -> ^ast.Statement {
+    start_pos := p.curr_tok.pos
+    advance_token(p)
+    ident := expect_token(p, .Identifier)
+    expect_token(p, .Colon)
+    type := parse_type_specifier(p)
+    if _, is_assign := check_token(p, .Assign); is_assign {
+        advance_token(p)
+    }
+
+    val := parse_expression(p)
+    expect_token(p, .Semicolon)
+    vd := ast.new(ast.Declarator, start_pos, end_pos(p.prev_tok))
+    vd.name = ident.text
+    vd.mutable = true
+
+    _, invalid_val := val.derived_expression.(^ast.Invalid_Expression)
+
+    if type == nil && !invalid_val {
+        type = expression_type(p^, val)
+        if _, invalid := type.derived_type.(^ast.Invalid_Type); invalid {
+            errorf_msg(p, start_pos, "cannot deduce type of var `%s`", vd.name)
+        }
+        vd.type = type
+    } else if type == nil && invalid_val {
+        errorf_msg(p, start_pos, "cannot deduce type of var `%s`", vd.name)
+    }
+
+    if type != nil && invalid_val {
+        vd.type = type
+        vd.value = nil
+        free(val)
+    } else {
+        expr_type := expression_type(p^, val)
+        type_type, _ := type.derived_type.(^ast.Builtin_Type)
+        if val_type := expr_type.derived_type.(^ast.Builtin_Type); val_type.type != type_type.type {
+            errorf_msg(p, start_pos, "cannot assign value of type `%s` to variable of type `%s`", val_type.type, type_type.type)
+        }
+        free(expr_type)
+        vd.type = type
+        vd.value = val
+    }
+
+    if _, exists := symbol.symbol_exists(vd.name, p.sym_table[:]); exists {
+        errorf_msg(p, vd.start, "name `%s` already used", vd.name)
+        return vd
+    }
+
+    var_type: tokenizer.Token_Kind
+    #partial switch t in type.derived_type {
+    case ^ast.Builtin_Type:
+        var_type = t.type
+    }
+
+    var_symbol := symbol.Symbol{ vd.name, var_type, true, len(p.sym_table) }
+    append(&p.sym_table, var_symbol)
+
+    return vd
 }
 
 expression_type :: proc(p: Parser, expr: ^ast.Expression) -> ^ast.Type_Specifier {
@@ -329,7 +346,7 @@ parse_primary :: proc(p: ^Parser) -> ^ast.Expression {
         expr := parse_expression(p)
         expect_token(p, .R_Paren) // Note: consume R_Paren
         return expr
-    case .Integer, .Float, .True, .False, .String:
+    case .Integer, .Float, .True, .False, .String, .Rune:
         lit := parse_literal(p)
         return lit
     case .Identifier:
@@ -403,7 +420,7 @@ parse_literal :: proc(p: ^Parser) -> ^ast.Expression {
     start_pos := p.curr_tok.pos
 
     #partial switch p.curr_tok.type {
-    case .Integer, .Float, .True, .False, .String:
+    case .Integer, .Float, .True, .False, .String, .Rune:
         tok := advance_token(p)
         lit := ast.new(ast.Literal, start_pos, end_pos(p.prev_tok))
         lit.type = tok.type

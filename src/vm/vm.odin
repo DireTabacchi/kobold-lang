@@ -79,10 +79,6 @@ get_global :: proc(vm: ^Virtual_Machine) {
     stack_push(vm, global_val)
 }
 
-resolve_global :: proc(vm: Virtual_Machine) {
-
-}
-
 read_u16 :: proc(vm: ^Virtual_Machine) -> u16 {
     hi := vm.chunk.code[vm.ip+1]
     lo := vm.chunk.code[vm.ip+2]
@@ -142,9 +138,13 @@ exec_unary_op :: proc(vm: ^Virtual_Machine, op: byte) {
     switch op {
     case byte(Op_Code.NEG):
         val := stack_pop(vm)
-        switch val.type {
+        #partial switch val.type {
         case .Integer:
             val.value = -val.value.(i64)
+            stack_push(vm, val)
+            return
+        case .Float:
+            val.value = -val.value.(f64)
             stack_push(vm, val)
             return
         }
