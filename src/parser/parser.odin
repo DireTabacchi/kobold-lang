@@ -62,14 +62,40 @@ parse_statement :: proc(p: ^Parser) -> ^ast.Statement {
         }
         return decl_stmt
     case:
-        expr_stmt := parse_expr_statement(p)
-        if expr_stmt == nil {
-            error(p, p.curr_tok.pos, "error parsing expression statement")
-            return nil
+        start_idx := p.curr_idx
+        for p.curr_tok.type != .Assign && p.curr_tok.type != .Semicolon {
+            advance_token(p)
         }
-        return expr_stmt
+        if p.curr_tok.type == .Assign {
+            reset_to_token(p, start_idx)
+            assign_stmt := parse_assign_statement(p)
+            return assign_stmt
+        } else if p.curr_tok.type == .Semicolon {
+            reset_to_token(p, start_idx)
+            expr_stmt := parse_expr_statement(p)
+            if expr_stmt == nil {
+                error(p, p.curr_tok.pos, "error parsing expression statement")
+                return nil
+            }
+            return expr_stmt
+        }
     }
     return nil
+}
+
+parse_assign_statement :: proc(p: ^Parser) -> ^ast.Statement {
+    start_pos := p.curr_tok.pos
+    ident := parse_identifier(p)
+    expect_token(p, .Assign)
+    expr := parse_expression(p)
+    expect_token(p, .Semicolon)
+    as := ast.new(ast.Assignment_Statement, start_pos, end_pos(p.prev_tok))
+    if id, valid := ident.derived_expression.(^ast.Identifier); valid {
+        as.name = id.name
+        as.value = expr
+    }
+    free(ident)
+    return as
 }
 
 parse_decl_statement :: proc(p: ^Parser) -> ^ast.Statement {
@@ -448,7 +474,6 @@ parse_literal :: proc(p: ^Parser) -> ^ast.Expression {
 
 parse_identifier :: proc(p: ^Parser) -> ^ast.Expression {
     start_pos := p.curr_tok.pos
-    // TODO: Should create a symbol table and make a procedure to parse an identifier and add it to that table
     if tok := expect_token(p, .Identifier); tok.type == .Identifier {
         ident := ast.new(ast.Identifier, start_pos, end_pos(p.prev_tok))
         ident.name = tok.text
@@ -468,7 +493,6 @@ advance_token :: proc(p: ^Parser) -> tokenizer.Token {
 
     return p.prev_tok
 }
-
 
 expect_token :: proc(p: ^Parser, type: tokenizer.Token_Kind) -> tokenizer.Token {
     prev := p.curr_tok
@@ -490,6 +514,14 @@ peek_token :: proc(p: ^Parser) -> tokenizer.Token {
 
 check_token :: proc(p: ^Parser, type: tokenizer.Token_Kind) -> (tokenizer.Token, bool) {
     return p.curr_tok, p.curr_tok.type == type
+}
+
+reset_to_token :: proc(p: ^Parser, idx: int) {
+    p.curr_idx = idx
+    if p.curr_idx == 0 {
+        p.prev_tok = tokenizer.Token{}
+    }
+    p.curr_tok = p.toks[p.curr_idx]
 }
 
 end_pos :: proc(tok: tokenizer.Token) -> tokenizer.Pos {

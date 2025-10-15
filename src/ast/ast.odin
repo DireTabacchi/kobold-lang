@@ -48,6 +48,12 @@ Declarator :: struct {
     mutable: bool,
 }
 
+Assignment_Statement :: struct {
+    using node: Statement,
+    name: string,
+    value: ^Expression,
+}
+
 Expression_Statement :: struct {
     using node: Statement,
     expr: ^Expression,
@@ -102,6 +108,7 @@ Invalid_Type :: struct {
 Any_Statement :: union {
     ^Declarator,
     ^Expression_Statement,
+    ^Assignment_Statement,
 }
 
 Any_Expression :: union {
@@ -153,6 +160,9 @@ statement_destroy :: proc(stmt: Any_Statement) {
         if s.value != nil {
             expression_destroy(s.value.derived_expression)
         }
+        free(s)
+    case ^Assignment_Statement:
+        expression_destroy(s.value.derived_expression)
         free(s)
     case ^Expression_Statement:
         expression_destroy(s.expr.derived_expression)

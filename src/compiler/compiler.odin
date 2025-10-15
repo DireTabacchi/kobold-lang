@@ -40,6 +40,11 @@ compile :: proc(comp: ^Compiler, prog: ^ast.Program) {
                 emit_byte(&comp.chunk, u8(Op_Code.SETG))
                 emit_bytes(&comp.chunk, idx)
             }
+        case ^ast.Assignment_Statement:
+            _, idx := resolve_global(comp, stmt.name)
+            compile_expression(comp, stmt.value.derived_expression)
+            emit_byte(&comp.chunk, u8(Op_Code.SETG))
+            emit_bytes(&comp.chunk, u16(idx))
         case ^ast.Expression_Statement:
             compile_expression(comp, stmt.expr.derived_expression)
         }
@@ -65,32 +70,6 @@ make_global :: proc(comp: ^Compiler, name: string) {
         val.value = rune(0)
     }
     append(&comp.globals, val)
-}
-
-resolve_symbol :: proc(c: ^Compiler, sym_name: string) -> (val: object.Value, idx: int) {
-    for sym in c.sym_table {
-        if sym_name == sym.name {
-            #partial switch sym.type {
-            case .Type_Integer:
-                val.type = .Integer
-            case .Type_Unsigned_Integer:
-                val.type = .Unsigned_Integer
-            case .Type_Float:
-                val.type = .Float
-            case .Type_Boolean:
-                val.type = .Boolean
-            case .Type_String:
-                val.type = .String
-            case .Type_Rune:
-                val.type = .Rune
-            }
-            val.mutable = sym.mutable
-            idx = sym.id
-            break
-        }
-    }
-
-    return
 }
 
 compile_expression :: proc(comp: ^Compiler, expr: ast.Any_Expression) {
@@ -186,4 +165,36 @@ emit_bytes :: proc(chunk: ^code.Chunk, bytes: u16) {
 
 emit_byte :: proc (chunk: ^code.Chunk, b: byte) {
     append(&chunk.code, b)
+}
+
+resolve_symbol :: proc(c: ^Compiler, sym_name: string) -> (val: object.Value, idx: int) {
+    for sym in c.sym_table {
+        if sym_name == sym.name {
+            #partial switch sym.type {
+            case .Type_Integer:
+                val.type = .Integer
+            case .Type_Unsigned_Integer:
+                val.type = .Unsigned_Integer
+            case .Type_Float:
+                val.type = .Float
+            case .Type_Boolean:
+                val.type = .Boolean
+            case .Type_String:
+                val.type = .String
+            case .Type_Rune:
+                val.type = .Rune
+            }
+            val.mutable = sym.mutable
+            idx = sym.id
+            break
+        }
+    }
+
+    return
+}
+
+resolve_global :: proc(c: ^Compiler, global_name: string) -> (val:object.Value, idx: int) {
+    val, idx = resolve_symbol(c, global_name)
+    val.value = c.globals[idx].value
+    return
 }

@@ -60,6 +60,16 @@ print_stmt :: proc(ap: ^AST_Printer, stmt: Any_Statement) {
             write_tabs(ap)
             strings.write_string(&ap.builder, "\u2514nil\n")
         }
+    case ^Assignment_Statement:
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514Assignment Statement:\n")
+        ap.indent_lvl += 1
+        defer ap.indent_lvl -= 1
+        write_tabs(ap)
+        fmt.sbprintfln(&ap.builder, "\u251Cname: %s", st.name)
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514value:\n")
+        print_expr(ap, st.value.derived_expression)
     case ^Expression_Statement:
         write_tabs(ap)
         strings.write_string(&ap.builder, "\u2514Expression Statement:\n")
