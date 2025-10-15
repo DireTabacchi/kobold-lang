@@ -1,0 +1,6 @@
+var a := 23;
+var b := 34;
+var c: int;
+
+c = a + b + 45;
+c;
