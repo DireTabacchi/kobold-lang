@@ -4,6 +4,7 @@ import "base:intrinsics"
 import "core:fmt"
 import "core:os"
 import "core:mem"
+_ :: mem
 
 import "kobold:tokenizer"
 import "kobold:parser"
@@ -11,7 +12,7 @@ import "kobold:ast"
 import "kobold:compiler"
 import "kobold:vm"
 
-KOBOLD_VERSION :: "0.0.31"
+KOBOLD_VERSION :: "0.0.32"
 
 main :: proc() {
     when ODIN_DEBUG {   // From Odin Overview

@@ -40,19 +40,11 @@ run :: proc(vm: ^Virtual_Machine) {
         switch op_bc {
         case byte(Op_Code.PUSHC):
             stack_push(vm, vm.chunk.constants[read_u16(vm)])
-        case byte(Op_Code.ADD):
+        case byte(Op_Code.ADD), byte(Op_Code.SUB), byte(Op_Code.MULT), byte(Op_Code.DIV), byte(Op_Code.MOD), byte(Op_Code.MODF),
+        byte(Op_Code.EQ), byte(Op_Code.NEQ), byte(Op_Code.LSSR), byte(Op_Code.GRTR), byte(Op_Code.LEQ), byte(Op_Code.GEQ),
+        byte(Op_Code.LAND), byte(Op_Code.LOR):
             exec_binary_op(vm, op_bc)
-        case byte(Op_Code.SUB):
-            exec_binary_op(vm, op_bc)
-        case byte(Op_Code.MULT):
-            exec_binary_op(vm, op_bc)
-        case byte(Op_Code.DIV):
-            exec_binary_op(vm, op_bc)
-        case byte(Op_Code.MOD):
-            exec_binary_op(vm, op_bc)
-        case byte(Op_Code.MODF):
-            exec_binary_op(vm, op_bc)
-        case byte(Op_Code.NEG):
+        case byte(Op_Code.NEG), byte(Op_Code.NOT):
             exec_unary_op(vm, op_bc)
         case byte(Op_Code.SETG):
             set_global(vm)
@@ -169,6 +161,132 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
         }
         res.type = a.type
         stack_push(vm, res)
+    case byte(Op_Code.EQ):
+        b := stack_pop(vm)
+        a := stack_pop(vm)
+        res: object.Value
+        #partial switch a.type {
+        case .Integer:
+            res.value = a.value.(i64) == b.value.(i64)
+        case .Unsigned_Integer:
+            res.value = a.value.(u64) == b.value.(u64)
+        case .Float:
+            res.value = a.value.(f64) == b.value.(f64)
+        case .String:
+            res.value = a.value.(string) == b.value.(string)
+        case .Rune:
+            res.value = a.value.(rune) == b.value.(rune)
+        case .Boolean:
+            res.value = a.value.(bool) == b.value.(bool)
+        }
+        res.type = .Boolean
+        stack_push(vm, res)
+    case byte(Op_Code.NEQ):
+        b := stack_pop(vm)
+        a := stack_pop(vm)
+        res: object.Value
+        #partial switch a.type {
+        case .Integer:
+            res.value = a.value.(i64) != b.value.(i64)
+        case .Unsigned_Integer:
+            res.value = a.value.(u64) != b.value.(u64)
+        case .Float:
+            res.value = a.value.(f64) != b.value.(f64)
+        case .String:
+            res.value = a.value.(string) != b.value.(string)
+        case .Rune:
+            res.value = a.value.(rune) != b.value.(rune)
+        case .Boolean:
+            res.value = a.value.(bool) != b.value.(bool)
+        }
+        res.type = .Boolean
+        stack_push(vm, res)
+    case byte(Op_Code.LSSR):
+        b := stack_pop(vm)
+        a := stack_pop(vm)
+        res: object.Value
+        #partial switch a.type {
+        case .Integer:
+            res.value = a.value.(i64) < b.value.(i64)
+        case .Unsigned_Integer:
+            res.value = a.value.(u64) < b.value.(u64)
+        case .Float:
+            res.value = a.value.(f64) < b.value.(f64)
+        case .String:
+            res.value = a.value.(string) < b.value.(string)
+        case .Rune:
+            res.value = a.value.(rune) < b.value.(rune)
+        }
+        res.type = .Boolean
+        stack_push(vm, res)
+    case byte(Op_Code.GRTR):
+        b := stack_pop(vm)
+        a := stack_pop(vm)
+        res: object.Value
+        #partial switch a.type {
+        case .Integer:
+            res.value = a.value.(i64) > b.value.(i64)
+        case .Unsigned_Integer:
+            res.value = a.value.(u64) > b.value.(u64)
+        case .Float:
+            res.value = a.value.(f64) > b.value.(f64)
+        case .String:
+            res.value = a.value.(string) > b.value.(string)
+        case .Rune:
+            res.value = a.value.(rune) > b.value.(rune)
+        }
+        res.type = .Boolean
+        stack_push(vm, res)
+    case byte(Op_Code.LEQ):
+        b := stack_pop(vm)
+        a := stack_pop(vm)
+        res: object.Value
+        #partial switch a.type {
+        case .Integer:
+            res.value = a.value.(i64) <= b.value.(i64)
+        case .Unsigned_Integer:
+            res.value = a.value.(u64) <= b.value.(u64)
+        case .Float:
+            res.value = a.value.(f64) <= b.value.(f64)
+        case .String:
+            res.value = a.value.(string) <= b.value.(string)
+        case .Rune:
+            res.value = a.value.(rune) <= b.value.(rune)
+        }
+        res.type = .Boolean
+        stack_push(vm, res)
+    case byte(Op_Code.GEQ):
+        b := stack_pop(vm)
+        a := stack_pop(vm)
+        res: object.Value
+        #partial switch a.type {
+        case .Integer:
+            res.value = a.value.(i64) >= b.value.(i64)
+        case .Unsigned_Integer:
+            res.value = a.value.(u64) >= b.value.(u64)
+        case .Float:
+            res.value = a.value.(f64) >= b.value.(f64)
+        case .String:
+            res.value = a.value.(string) >= b.value.(string)
+        case .Rune:
+            res.value = a.value.(rune) >= b.value.(rune)
+        }
+        res.type = .Boolean
+        stack_push(vm, res)
+    case byte(Op_Code.LAND):
+        b := stack_pop(vm)
+        a := stack_pop(vm)
+        res: object.Value
+        res.value = a.value.(bool) && b.value.(bool)
+        res.type = .Boolean
+        stack_push(vm, res)
+    case byte(Op_Code.LOR):
+        b := stack_pop(vm)
+        a := stack_pop(vm)
+        res: object.Value
+        res.value = a.value.(bool) || b.value.(bool)
+        res.type = .Boolean
+        stack_push(vm, res)
     }
 }
 
@@ -180,11 +298,13 @@ exec_unary_op :: proc(vm: ^Virtual_Machine, op: byte) {
         case .Integer:
             val.value = -val.value.(i64)
             stack_push(vm, val)
-            return
         case .Float:
             val.value = -val.value.(f64)
             stack_push(vm, val)
-            return
         }
+    case byte(Op_Code.NOT):
+        val := stack_pop(vm)
+        val.value = !val.value.(bool)
+        stack_push(vm,val)
     }
 }

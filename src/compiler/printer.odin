@@ -27,8 +27,26 @@ print :: proc(comp: Compiler) {
             fmt.printfln("%8X    %-8s", i, "MOD")
         case u8(Op_Code.MODF):
             fmt.printfln("%8X    %-8s", i, "MODF")
+        case u8(Op_Code.EQ):
+            fmt.printfln("%8X    %-8s", i, "EQ")
+        case u8(Op_Code.NEQ):
+            fmt.printfln("%8X    %-8s", i, "NEQ")
+        case u8(Op_Code.LSSR):
+            fmt.printfln("%8X    %-8s", i, "LSSR")
+        case u8(Op_Code.GRTR):
+            fmt.printfln("%8X    %-8s", i, "GRTR")
+        case u8(Op_Code.LEQ):
+            fmt.printfln("%8X    %-8s", i, "LEQ")
+        case u8(Op_Code.GEQ):
+            fmt.printfln("%8X    %-8s", i, "GEQ")
+        case u8(Op_Code.LAND):
+            fmt.printfln("%8X    %-8s", i, "LAND")
+        case u8(Op_Code.LOR):
+            fmt.printfln("%8X    %-8s", i, "LOR")
         case u8(Op_Code.NEG):
             fmt.printfln("%8X    %-8s", i, "NEG")
+        case u8(Op_Code.NOT):
+            fmt.printfln("%8X    %-8s", i, "NOT")
         case u8(Op_Code.SETG):
             hi := comp.chunk.code[i+1]
             lo := comp.chunk.code[i+2]

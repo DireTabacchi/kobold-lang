@@ -111,12 +111,30 @@ compile_expression :: proc(comp: ^Compiler, expr: ast.Any_Expression) {
             emit_byte(&comp.chunk, byte(Op_Code.MOD))
         case .Mod_Floor:
             emit_byte(&comp.chunk, byte(Op_Code.MODF))
+        case .Eq:
+            emit_byte(&comp.chunk, byte(Op_Code.EQ))
+        case .Neq:
+            emit_byte(&comp.chunk, byte(Op_Code.NEQ))
+        case .Lt:
+            emit_byte(&comp.chunk, byte(Op_Code.LSSR))
+        case .Gt:
+            emit_byte(&comp.chunk, byte(Op_Code.GRTR))
+        case .Leq:
+            emit_byte(&comp.chunk, byte(Op_Code.LEQ))
+        case .Geq:
+            emit_byte(&comp.chunk, byte(Op_Code.GEQ))
+        case .Logical_And:
+            emit_byte(&comp.chunk, byte(Op_Code.LAND))
+        case .Logical_Or:
+            emit_byte(&comp.chunk, byte(Op_Code.LOR))
         }
     case ^ast.Unary_Expression:
         compile_expression(comp, e.expr.derived_expression)
         #partial switch e.op.type {
         case .Minus:
             emit_byte(&comp.chunk, byte(Op_Code.NEG))
+        case .Not:
+            emit_byte(&comp.chunk, byte(Op_Code.NOT))
         }
     case ^ast.Literal:
         #partial switch e.type {

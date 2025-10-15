@@ -202,8 +202,21 @@ parse_var_decl :: proc(p: ^Parser) -> ^ast.Statement {
 expression_type :: proc(p: Parser, expr: ^ast.Expression) -> ^ast.Type_Specifier {
     #partial switch e in expr.derived_expression {
     case ^ast.Binary_Expression:
-        return expression_type(p, e.left)
+        #partial switch e.op.type {
+        case .Logical_And..=.Geq:
+            ts := ast.new(ast.Builtin_Type, e.start, e.end)
+            ts.type = .Type_Boolean
+            return ts
+        case:
+            return expression_type(p, e.left)
+        }
     case ^ast.Unary_Expression:
+        #partial switch e.op.type {
+        case .Not:
+            ts := ast.new(ast.Builtin_Type, e.start, e.end)
+            ts.type = .Type_Boolean
+            return ts
+        }
         return expression_type(p, e.expr)
     case ^ast.Literal:
         type: tokenizer.Token_Kind
