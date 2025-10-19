@@ -1,17 +1,20 @@
-var alfa: int = 3;          // [0] PUSHC, [19] SETG
+var alfa: int = 3;
 var bravo: int;
 
-bravo = 5;                  // [0] PUSHC, [19] SETG
+bravo = 5;
 
-if alfa >= 2 {              // [20] GETG, [0] PUSHC, [11] GEQ, [18] JF
-    var charlie := 8;       // [0] PUSHC, [21] SETL
-    bravo = 7 + charlie;    // [0] PUSHC, [22] GETL, [1] ADD, [19] SETG
+if alfa >= 5 {
+    var charlie := 8;
+    bravo = 7 + charlie;
     var delta := charlie + bravo;
     alfa = 3 * delta;
     var echo: int;
     echo = alfa / 2;
+} else if alfa < 4 {
+    var charlie := 3;
+    bravo = charlie + bravo * alfa;
 }
-alfa;                      // [20] GETG, RET
+bravo;
 //if 3 < 4 {
 //    alfa = 5;
 //    var bravo := 7;

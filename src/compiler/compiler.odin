@@ -52,7 +52,7 @@ compile_statement :: proc(comp: ^Compiler, stmt: ast.Any_Statement) {
                 make_global(comp, st.name, st.type.derived_type.(^ast.Builtin_Type).type, st.mutable)
                 if st.value != nil {
                     compile_expression(comp, st.value.derived_expression)
-                    emit_byte(&comp.chunk, u8(Op_Code.SETG))
+                    emit_byte(&comp.chunk, byte(Op_Code.SETG))
                     emit_bytes(&comp.chunk, idx)
                 }
             } else {
@@ -64,14 +64,14 @@ compile_statement :: proc(comp: ^Compiler, stmt: ast.Any_Statement) {
                     decl_type := st.type.derived_type.(^ast.Builtin_Type).type
                     emit_constant(&comp.chunk, decl_type)
                 }
-                emit_byte(&comp.chunk, u8(Op_Code.SETL))
+                emit_byte(&comp.chunk, byte(Op_Code.SETL))
                 emit_bytes(&comp.chunk, idx)
             }
         case ^ast.Assignment_Statement:
             _, scope, idx := resolve_variable(comp, st.name)
             compile_expression(comp, st.value.derived_expression)
             if scope == 0 {
-                emit_byte(&comp.chunk, u8(Op_Code.SETG))
+                emit_byte(&comp.chunk, byte(Op_Code.SETG))
             } else {
                 emit_byte(&comp.chunk, byte(Op_Code.SETL))
             }
@@ -80,7 +80,23 @@ compile_statement :: proc(comp: ^Compiler, stmt: ast.Any_Statement) {
             compile_expression(comp, st.expr.derived_expression)
         case ^ast.If_Statement:
             compile_expression(comp, st.cond.derived_expression)
-            else_jump := emit_jump(&comp.chunk, u8(Op_Code.JF))
+            else_jump := emit_jump(&comp.chunk, byte(Op_Code.JF))
+            begin_scope(comp)
+            for s in st.consequent {
+                compile_statement(comp, s.derived_statement)
+            }
+            end_scope(comp)
+            if st.alternative != nil {
+                end_jump := emit_jump(&comp.chunk, byte(Op_Code.JMP))
+                patch_jump(&comp.chunk, else_jump)
+                compile_statement(comp, st.alternative.derived_statement)
+                patch_jump(&comp.chunk, end_jump)
+            } else {
+                patch_jump(&comp.chunk, else_jump)
+            }
+        case ^ast.Else_If_Statement:
+            compile_expression(comp, st.cond.derived_expression)
+            else_jump := emit_jump(&comp.chunk, byte(Op_Code.JF))
             begin_scope(comp)
             for s in st.consequent {
                 compile_statement(comp, s.derived_statement)
@@ -306,7 +322,7 @@ emit_byte :: proc (chunk: ^code.Chunk, b: byte) {
     append(&chunk.code, b)
 }
 
-emit_jump :: proc(chunk: ^code.Chunk, b: u8) -> u16 {
+emit_jump :: proc(chunk: ^code.Chunk, b: byte) -> u16 {
     append(&chunk.code, b)
     loc := u16(len(chunk.code))
     emit_bytes(chunk, 0xFFFF)
