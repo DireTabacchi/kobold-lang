@@ -9,12 +9,14 @@ print :: proc(comp: Compiler) {
     fmt.printfln("Bytecode Size: %d bytes", len(comp.chunk.code))
     for i := 0; i < len(comp.chunk.code); i += 1 {
         switch comp.chunk.code[i] {
-        case u8(Op_Code.PUSHC):
+        case u8(Op_Code.PUSH):
             hi := comp.chunk.code[i+1]
             lo := comp.chunk.code[i+2]
             idx : u16 = (u16(hi) << 8) | u16(lo)
             fmt.printfln("%8X    %-8s %#8X    %- 16v", i, "PUSHC", idx, comp.chunk.constants[idx].value)
             i += 2
+        case u8(Op_Code.POP):
+            fmt.printfln("%8X    %-8s", i, "POP")
         case u8(Op_Code.ADD):
             fmt.printfln("%8X    %-8s", i, "ADD")
         case u8(Op_Code.SUB):
@@ -47,6 +49,12 @@ print :: proc(comp: Compiler) {
             fmt.printfln("%8X    %-8s", i, "NEG")
         case u8(Op_Code.NOT):
             fmt.printfln("%8X    %-8s", i, "NOT")
+        case u8(Op_Code.JF):
+            hi := comp.chunk.code[i+1]
+            lo := comp.chunk.code[i+2]
+            loc : u16 = (u16(hi) << 8) | u16(lo)
+            fmt.printfln("%8X    %-8s %#8X", i, "JF", loc)
+            i += 2
         case u8(Op_Code.SETG):
             hi := comp.chunk.code[i+1]
             lo := comp.chunk.code[i+2]
@@ -58,6 +66,18 @@ print :: proc(comp: Compiler) {
             lo := comp.chunk.code[i+2]
             idx : u16 = (u16(hi) << 8) | u16(lo)
             fmt.printfln("%8X    %-8s %#8X", i, "GETG", idx)
+            i += 2
+        case u8(Op_Code.SETL):
+            hi := comp.chunk.code[i+1]
+            lo := comp.chunk.code[i+2]
+            idx : u16 = (u16(hi) << 8) | u16(lo)
+            fmt.printfln("%8X    %-8s %#8X", i, "SETL", idx)
+            i += 2
+        case u8(Op_Code.GETL):
+            hi := comp.chunk.code[i+1]
+            lo := comp.chunk.code[i+2]
+            idx : u16 = (u16(hi) << 8) | u16(lo)
+            fmt.printfln("%8X    %-8s %#8X", i, "GETL", idx)
             i += 2
         case u8(Op_Code.RET):
             fmt.printfln("%8X    %-8s", i, "RET")

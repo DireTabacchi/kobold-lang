@@ -3,7 +3,9 @@ package code
 //import "kobold:object"
 
 Op_Code :: enum byte {
-    PUSHC,  // Push a constant onto the stack. Op1: 2-byte index into constants table.
+    PUSH,   // Push a constant onto the stack.
+            // Op1: 2-byte index into constants table.
+    POP,    // Pop a value off of the stack. Removes the top value and decrements SP.
     ADD,    // Add the two values on the top of the stack. [SP-1] + [SP]
     SUB,    // Subtract two values on the top of the stack. [SP-1] - [SP]
     MULT,   // Multiply the two values on the top of the stack. [SP-1] * [SP]
@@ -20,10 +22,17 @@ Op_Code :: enum byte {
     MODF,   // Perform modulo with floored division of the two values on the top of the stack. [SP-1] %% [SP]
     NEG,    // Negate the value at the top of the stack.
     NOT,    // Invert the Boolean value at the top of the stack.
+    JMP,    // Unconditional JUMP instruction. Jump to bytecode instruction specified as operand.
+            // Op1: 2-byte instruction location to set IP to.
+    JF,     // Jump if False. Jump to bytecode instruction specified as operand if the top of stack value is false.
     SETG,   // Set a global variable in the globals table to a value.
             // Op1: 2-byte index into globals table.
     GETG,   // Get a global variable from the globals table, and push its value on the stack.
             // Op1: 2-byte index into globals table.
+    SETL,   // Set a local variable to a value.
+            // Op1: 2-byte location on the stack.
+    GETL,   // Get a the value of a local variable from the stack, and push its value on the stack.
+            // Op1: 2-byte location on the stack.
     RET,    // (Planned) Return (a possible value) from function call. (Current) Exit program execution.
 }
 

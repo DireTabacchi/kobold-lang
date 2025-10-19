@@ -35,10 +35,6 @@ Type_Specifier :: struct {
     derived_type: Any_Type,
 }
 
-//Declaration :: struct {
-//    using node: Statement,
-//}
-
 Declarator :: struct {
     using node: Statement,
     name: string,
@@ -57,6 +53,25 @@ Assignment_Statement :: struct {
 Expression_Statement :: struct {
     using node: Statement,
     expr: ^Expression,
+}
+
+If_Statement :: struct {
+    using node: Statement,
+    cond: ^Expression,
+    consequent: []^Statement,
+    alternative: ^Statement,
+}
+
+Else_If_Statement :: struct {
+    using node: Statement,
+    cond: ^Expression,
+    consequent: []^Statement,
+    alternative: ^Statement,
+}
+
+Else_Statement :: struct {
+    using node: Statement,
+    consequent: []^Statement,
 }
 
 Binary_Expression :: struct {
@@ -109,6 +124,9 @@ Any_Statement :: union {
     ^Declarator,
     ^Expression_Statement,
     ^Assignment_Statement,
+    ^If_Statement,
+    ^Else_If_Statement,
+    ^Else_Statement,
 }
 
 Any_Expression :: union {
@@ -166,6 +184,38 @@ statement_destroy :: proc(stmt: Any_Statement) {
         free(s)
     case ^Expression_Statement:
         expression_destroy(s.expr.derived_expression)
+        free(s)
+    case ^If_Statement:
+        expression_destroy(s.cond.derived_expression)
+        for cons in s.consequent {
+            statement_destroy(cons.derived_statement)
+        }
+        if s.consequent != nil {
+            delete(s.consequent)
+        }
+        if s.alternative != nil {
+            statement_destroy(s.alternative.derived_statement)
+        }
+        free(s)
+    case ^Else_If_Statement:
+        expression_destroy(s.cond.derived_expression)
+        for cons in s.consequent {
+            statement_destroy(cons.derived_statement)
+        }
+        if s.consequent != nil {
+            delete(s.consequent)
+        }
+        if s.alternative != nil {
+            statement_destroy(s.alternative.derived_statement)
+        }
+        free(s)
+    case ^Else_Statement:
+        for cons in s.consequent {
+            statement_destroy(cons.derived_statement)
+        }
+        if s.consequent != nil {
+            delete(s.consequent)
+        }
         free(s)
     }
 }

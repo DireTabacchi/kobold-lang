@@ -67,10 +67,10 @@ main :: proc() {
         return
     }
 
-    fmt.println("Symbol Table:")
-    for sym in p.sym_table {
-        fmt.println(sym)
-    }
+    //fmt.println("Symbol Table:")
+    //for sym in p.sym_table {
+    //    fmt.println(sym)
+    //}
 
     printer: ast.AST_Printer
     ast.printer_init(&printer)
@@ -79,7 +79,7 @@ main :: proc() {
     ast.printer_destroy(&printer)
 
     comp: compiler.Compiler
-    compiler.compiler_init(&comp, p.sym_table[:])
+    compiler.compiler_init(&comp)
 
     compiler.compile(&comp, p.prog)
     defer compiler.compiler_destroy(&comp)
@@ -89,14 +89,16 @@ main :: proc() {
     fmt.println("Constants:")
     fmt.println(comp.chunk.constants)
 
-    fmt.println("Globals:")
-    fmt.println(comp.globals)
+    //fmt.println("Globals:")
+    //fmt.println(comp.globals)
 
     virtual_machine: vm.Virtual_Machine
-    vm.vm_init(&virtual_machine, comp.chunk, comp.globals[:])
+    //vm.vm_init(&virtual_machine, comp.chunk, comp.globals[:])
+    vm.vm_init(&virtual_machine, comp.chunk)
 
     vm.run(&virtual_machine)
     fmt.println("=== VM Finished ===")
-    fmt.printfln("Globals:\n%v", virtual_machine.globals)
+    //fmt.printfln("Globals:\n%v", virtual_machine.globals)
     fmt.printfln("Stack top: %v", virtual_machine.stack[virtual_machine.sp-1].value)
+    vm.vm_destroy(&virtual_machine)
 }

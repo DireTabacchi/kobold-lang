@@ -6,6 +6,16 @@ Value :: struct {
     mutable: bool,
 }
 
+Local :: struct {
+    using val: Value,
+    scope: int,
+    loc: u16,
+}
+
+Global :: struct {
+    using val: Value,
+}
+
 Value_Kind :: enum {
     Integer,
     Unsigned_Integer,

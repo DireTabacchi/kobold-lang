@@ -74,6 +74,62 @@ print_stmt :: proc(ap: ^AST_Printer, stmt: Any_Statement) {
         write_tabs(ap)
         strings.write_string(&ap.builder, "\u2514Expression Statement:\n")
         print_expr(ap, st.expr.derived_expression)
+    case ^If_Statement:
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514If Statement:\n")
+        ap.indent_lvl += 1
+        defer ap.indent_lvl -= 1
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "cond:\n")
+        print_expr(ap, st.cond.derived_expression)
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "consequent:\n")
+        for stmt in st.consequent {
+            print_stmt(ap, stmt.derived_statement)
+        }
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "alternative:\n")
+        if st.alternative != nil {
+            print_stmt(ap, st.alternative.derived_statement)
+        } else {
+            ap.indent_lvl += 1
+            write_tabs(ap)
+            strings.write_string(&ap.builder, "\u2514nil\n")
+            ap.indent_lvl -= 1
+        }
+    case ^Else_If_Statement:
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514Else If Statement:\n")
+        ap.indent_lvl += 1
+        defer ap.indent_lvl -= 1
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "cond:\n")
+        print_expr(ap, st.cond.derived_expression)
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "consequent:\n")
+        for stmt in st.consequent {
+            print_stmt(ap, stmt.derived_statement)
+        }
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "alternative:\n")
+        if st.alternative != nil {
+            print_stmt(ap, st.alternative.derived_statement)
+        } else {
+            ap.indent_lvl += 1
+            write_tabs(ap)
+            strings.write_string(&ap.builder, "\u2514nil\n")
+            ap.indent_lvl -= 1
+        }
+    case ^Else_Statement:
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514Else Statement:\n")
+        ap.indent_lvl += 1
+        defer ap.indent_lvl -= 1
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514consequent:\n")
+        for stmt in st.consequent {
+            print_stmt(ap, stmt.derived_statement)
+        }
     }
 
 }

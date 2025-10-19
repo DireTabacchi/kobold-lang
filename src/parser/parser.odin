@@ -15,7 +15,9 @@ Parser :: struct {
     curr_tok: tokenizer.Token,
     curr_idx: int,
 
-    sym_table: [dynamic]symbol.Symbol,
+    curr_scope: int,
+
+    sym_table: ^symbol.Symbol_Table,
 
     error_count: int,
 
@@ -29,6 +31,10 @@ parser_init :: proc(p: ^Parser, tokens: []tokenizer.Token) {
     p.prev_tok = {}
     p.curr_tok = p.toks[p.curr_idx]
 
+    p.curr_scope = 0
+
+    p.sym_table = symbol.new()
+
     p.error_count = 0
 
     p.prog = new(ast.Program)
@@ -36,7 +42,7 @@ parser_init :: proc(p: ^Parser, tokens: []tokenizer.Token) {
 
 parser_destroy :: proc(p: ^Parser) {
     free(p.prog)
-    delete(p.sym_table)
+    symbol.destroy(p.sym_table)
 }
 
 parse :: proc(p: ^Parser) {
@@ -61,6 +67,8 @@ parse_statement :: proc(p: ^Parser) -> ^ast.Statement {
             return nil
         }
         return decl_stmt
+    case .If:
+        return parse_if_statement(p)
     case:
         start_idx := p.curr_idx
         for p.curr_tok.type != .Assign && p.curr_tok.type != .Semicolon {
@@ -81,6 +89,76 @@ parse_statement :: proc(p: ^Parser) -> ^ast.Statement {
         }
     }
     return nil
+}
+
+// TODO: Improve parser error handling with all if-statement parsing functions
+parse_if_statement :: proc(p: ^Parser) -> ^ast.Statement {
+    start_pos := p.curr_tok.pos
+    advance_token(p)
+    cond_expr := parse_expression(p)
+    expect_token(p, .L_Brace)
+    consequent := parse_block(p)
+    alt: ^ast.Statement = nil
+    if p.curr_tok.type == .Else {
+        advance_token(p)
+        alt = parse_else_if_statement(p)
+    }
+    if_stmt := ast.new(ast.If_Statement, start_pos, end_pos(p.prev_tok))
+    if_stmt.cond = cond_expr
+    if_stmt.consequent = consequent
+    if_stmt.alternative = alt
+    return if_stmt
+}
+
+parse_else_if_statement :: proc(p: ^Parser) -> ^ast.Statement {
+    start_pos := p.curr_tok.pos
+    tok := advance_token(p)
+    if tok.type == .If {
+        cond_expr := parse_expression(p)
+        expect_token(p, .L_Brace)
+        consequent := parse_block(p)
+        alt: ^ast.Statement = nil
+        if p.curr_tok.type == .Else {
+            advance_token(p)
+            alt = parse_else_if_statement(p)
+        }
+        ei := ast.new(ast.Else_If_Statement, start_pos, end_pos(p.prev_tok))
+        ei.cond = cond_expr
+        ei.consequent = consequent
+        ei.alternative = alt
+        return ei
+    } else if tok.type == .L_Brace {
+        consequent := parse_block(p)
+        es := ast.new(ast.Else_Statement, start_pos, end_pos(p.prev_tok))
+        es.consequent = consequent
+        return es
+    } else {
+        error(p, start_pos, "expected if clause or block")
+        return nil
+    }
+}
+
+parse_block :: proc(p: ^Parser) -> []^ast.Statement {
+    p.curr_scope += 1
+    defer p.curr_scope -= 1
+    p.sym_table = symbol.new(p.sym_table)
+
+    defer {
+        block_table := p.sym_table
+        p.sym_table = p.sym_table.outer
+        symbol.destroy(block_table)
+    }
+
+    block: [dynamic]^ast.Statement
+
+    for p.curr_tok.type != .R_Brace {
+        stmt := parse_statement(p)
+        append(&block, stmt)
+    }
+
+    expect_token(p, .R_Brace)
+
+    return block[:]
 }
 
 parse_assign_statement :: proc(p: ^Parser) -> ^ast.Statement {
@@ -141,7 +219,7 @@ parse_const_decl :: proc(p: ^Parser) -> ^ast.Statement {
         return cd
     }
 
-    if _, exists := symbol.symbol_exists(cd.name, p.sym_table[:]); exists {
+    if _, exists := symbol.symbol_exists(cd.name, p.sym_table^); exists {
         errorf_msg(p, cd.start, "name `%s` already used", cd.name)
         return cd
     }
@@ -159,8 +237,8 @@ parse_const_decl :: proc(p: ^Parser) -> ^ast.Statement {
         const_type = t.type
     }
 
-    const_symbol := symbol.Symbol{ cd.name, const_type, false, len(p.sym_table) }
-    append(&p.sym_table, const_symbol)
+    const_symbol := symbol.Symbol{ cd.name, const_type, false, p.curr_scope, len(p.sym_table.symbols) }
+    append(&p.sym_table.symbols, const_symbol)
 
     return cd
 }
@@ -208,7 +286,7 @@ parse_var_decl :: proc(p: ^Parser) -> ^ast.Statement {
         vd.value = val
     }
 
-    if _, exists := symbol.symbol_exists(vd.name, p.sym_table[:]); exists {
+    if _, exists := symbol.symbol_exists(vd.name, p.sym_table^); exists {
         errorf_msg(p, vd.start, "name `%s` already used", vd.name)
         return vd
     }
@@ -219,8 +297,8 @@ parse_var_decl :: proc(p: ^Parser) -> ^ast.Statement {
         var_type = t.type
     }
 
-    var_symbol := symbol.Symbol{ vd.name, var_type, true, len(p.sym_table) }
-    append(&p.sym_table, var_symbol)
+    var_symbol := symbol.Symbol{ vd.name, var_type, true, p.curr_scope, len(p.sym_table.symbols) }
+    append(&p.sym_table.symbols, var_symbol)
 
     return vd
 }
@@ -270,10 +348,9 @@ expression_type :: proc(p: Parser, expr: ^ast.Expression) -> ^ast.Type_Specifier
     case ^ast.Identifier:
         name := e.name
         type: tokenizer.Token_Kind
-        for sym in p.sym_table {
-            if name == sym.name {
-                type = sym.type
-            }
+        sym, exists := symbol.symbol_exists(name, p.sym_table^)
+        if exists {
+            type = sym.type
         }
         ts := ast.new(ast.Builtin_Type, expr.start, expr.end)
         ts.type = type
@@ -499,7 +576,6 @@ expect_token :: proc(p: ^Parser, type: tokenizer.Token_Kind) -> tokenizer.Token 
     if p.curr_tok.type != type {
         pos := p.curr_tok.pos
         errorf_msg(p, pos, "expected '%s', got '%s'", tokenizer.token_list[type], p.curr_tok.text)
-        //fmt.eprintfln("[%d:%d] expected '%s', got '%s'", pos.line, pos.col, tokenizer.token_list[type], p.curr_tok.text)
     }
     advance_token(p)
     return prev
