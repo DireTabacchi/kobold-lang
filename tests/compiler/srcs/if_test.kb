@@ -1,0 +1,32 @@
+var alfa: int = 3;          // [0] PUSHC, [19] SETG
+var bravo: int;
+
+bravo = 5;                  // [0] PUSHC, [19] SETG
+
+if alfa >= 2 {              // [20] GETG, [0] PUSHC, [11] GEQ, [18] JF
+    var charlie := 8;       // [0] PUSHC, [21] SETL
+    bravo = 7 + charlie;    // [0] PUSHC, [22] GETL, [1] ADD, [19] SETG
+    var delta := charlie + bravo;
+    alfa = 3 * delta;
+    var echo: int;
+    echo = alfa / 2;
+}
+alfa;                      // [20] GETG, RET
+//if 3 < 4 {
+//    alfa = 5;
+//    var bravo := 7;
+//    if bravo == 3 {
+//        alfa = 45;
+//    }
+//} else if 5 > 3 {
+//    alfa = 6;
+//    var bravo := 8;
+//    alfa = alfa + bravo;
+//} else {
+//    alfa = 77;
+//}
+
+//if 7 > 3 {
+//    var charlie := bravo;   // bravo shouldn't be accessible here
+//}
+//else { var charlie := alfa;    // completely ok }

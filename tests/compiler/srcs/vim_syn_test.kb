@@ -1,0 +1,15 @@
+const PI: float = 3.14159;
+var radius: float = 2.0;
+var area: float;
+
+var test := int = -342;
+var name: string = "String Test";
+var initial: rune = 'K';
+var tested: bool = true;
+
+if 3 * 5 == 15 {
+    test = test + 5;
+}
+
+area = PI * radius * radius;
+area;
