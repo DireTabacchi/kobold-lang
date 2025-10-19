@@ -56,6 +56,9 @@ run :: proc(vm: ^Virtual_Machine) {
             exec_binary_op(vm, op_bc)
         case byte(Op_Code.NEG), byte(Op_Code.NOT):
             exec_unary_op(vm, op_bc)
+        case byte(Op_Code.JMP):
+            loc := read_u16(vm)
+            vm.ip = int(loc)
         case byte(Op_Code.JF):
             exec_jump_false(vm)
         case byte(Op_Code.SETG):

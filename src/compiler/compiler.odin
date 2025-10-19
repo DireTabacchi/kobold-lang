@@ -102,7 +102,19 @@ compile_statement :: proc(comp: ^Compiler, stmt: ast.Any_Statement) {
                 compile_statement(comp, s.derived_statement)
             }
             end_scope(comp)
-            patch_jump(&comp.chunk, else_jump)
+            if st.alternative != nil {
+                end_jump := emit_jump(&comp.chunk, byte(Op_Code.JMP))
+                patch_jump(&comp.chunk, else_jump)
+                compile_statement(comp,st.alternative.derived_statement)
+                patch_jump(&comp.chunk, end_jump)
+            } else {
+                patch_jump(&comp.chunk, else_jump)
+            }
+        case ^ast.Else_Statement:
+            begin_scope(comp)
+            for s in st.consequent {
+                compile_statement(comp, s.derived_statement)
+            }
     }
 }
 

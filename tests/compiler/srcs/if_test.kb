@@ -1,4 +1,4 @@
-var alfa: int = 3;
+var alfa: int = 4;
 var bravo: int;
 
 bravo = 5;
@@ -13,6 +13,9 @@ if alfa >= 5 {
 } else if alfa < 4 {
     var charlie := 3;
     bravo = charlie + bravo * alfa;
+} else {
+    var charlie := 79;
+    bravo = (charlie - alfa) + bravo * alfa;
 }
 bravo;
 //if 3 < 4 {
