@@ -1,0 +1,8 @@
+var alfa: int;
+for var i := 0; i < 100; i = i + 1 {
+    alfa = i;
+    if i == 20 {
+        break;
+    }
+}
+alfa;

@@ -1,0 +1,15 @@
+var alfa: int;
+for var i := 0; i < 100; i = i + 1 {
+    alfa = i;
+    var charlie := 3;
+    if i == 20 {
+        alfa = 200;
+        break;
+    }
+    var bravo := i + 1;
+    if alfa > 19 {
+        break;
+    }
+    alfa = bravo * i;
+}
+alfa;

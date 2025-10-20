@@ -6,7 +6,8 @@ Statement -> Declaration
           |  LoopStatement
           |  IfStatement
           |  SwitchStatement
-          |  ReturnStatement ;
+          |  ReturnStatement
+          |  ControlFlowStatement ;
 
 Declaration -> Declarator
             |  TypeDecl
@@ -23,6 +24,8 @@ IfStatement -> "if" Expr "{" Block "}" ElseStatement? ;
 SwitchStatement -> "switch" IdentifierSelector "{" SwitchBlock "}" ;
 
 ReturnStatement -> "return" Expr? ";" ;
+
+ControlFlowStatement -> "break" ";";
 
 Declarator -> ( "var" | "const" ) IDENTIFIER ":" TypeSpecifier? DeclaratorExpr? ";" ;
 
