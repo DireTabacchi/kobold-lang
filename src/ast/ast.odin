@@ -74,6 +74,14 @@ Else_Statement :: struct {
     consequent: []^Statement,
 }
 
+For_Statement :: struct {
+    using node: Statement,
+    decl: ^Statement,
+    cond_expr: ^Expression,
+    cont_stmt: ^Statement,
+    body: []^Statement,
+}
+
 Binary_Expression :: struct {
     using node: Expression,
     left: ^Expression,
@@ -127,6 +135,7 @@ Any_Statement :: union {
     ^If_Statement,
     ^Else_If_Statement,
     ^Else_Statement,
+    ^For_Statement,
 }
 
 Any_Expression :: union {
@@ -215,6 +224,21 @@ statement_destroy :: proc(stmt: Any_Statement) {
         }
         if s.consequent != nil {
             delete(s.consequent)
+        }
+        free(s)
+    case ^For_Statement:
+        if s.decl != nil {
+            statement_destroy(s.decl.derived_statement)
+        }
+        expression_destroy(s.cond_expr.derived_expression)
+        if s.cont_stmt != nil {
+            statement_destroy(s.cont_stmt.derived_statement)
+        }
+        for body_stmt in s.body {
+            statement_destroy(body_stmt.derived_statement)
+        }
+        if s.body != nil {
+            delete(s.body)
         }
         free(s)
     }

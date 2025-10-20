@@ -12,7 +12,7 @@ import "kobold:ast"
 import "kobold:compiler"
 import "kobold:vm"
 
-KOBOLD_VERSION :: "0.0.36"
+KOBOLD_VERSION :: "0.0.38"
 
 main :: proc() {
     when ODIN_DEBUG {   // From Odin Overview
@@ -86,8 +86,8 @@ main :: proc() {
 
     compiler.print(comp)
 
-    fmt.println("Constants:")
-    fmt.println(comp.chunk.constants)
+    //fmt.println("Constants:")
+    //fmt.println(comp.chunk.constants)
 
     //fmt.println("Globals:")
     //fmt.println(comp.globals)

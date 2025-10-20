@@ -69,6 +69,8 @@ parse_statement :: proc(p: ^Parser) -> ^ast.Statement {
         return decl_stmt
     case .If:
         return parse_if_statement(p)
+    case .For:
+        return parse_for_statement(p)
     case:
         start_idx := p.curr_idx
         for p.curr_tok.type != .Assign && p.curr_tok.type != .Semicolon {
@@ -76,7 +78,7 @@ parse_statement :: proc(p: ^Parser) -> ^ast.Statement {
         }
         if p.curr_tok.type == .Assign {
             reset_to_token(p, start_idx)
-            assign_stmt := parse_assign_statement(p)
+            assign_stmt := parse_assign_statement(p, true)
             return assign_stmt
         } else if p.curr_tok.type == .Semicolon {
             reset_to_token(p, start_idx)
@@ -89,6 +91,47 @@ parse_statement :: proc(p: ^Parser) -> ^ast.Statement {
         }
     }
     return nil
+}
+
+// TODO: Improve error handling for for-statements. Perhaps start checker.
+parse_for_statement :: proc(p: ^Parser) -> ^ast.Statement {
+    start_pos := p.curr_tok.pos
+    expect_token(p, .For)
+
+    increment_scope(p)
+
+    start_idx := p.curr_idx
+    for p.curr_tok.type != .L_Brace && p.curr_tok.type != .Semicolon {
+        advance_token(p)
+    }
+
+    tok_type := p.curr_tok.type
+    reset_to_token(p, start_idx)
+
+    for_decl: ^ast.Statement = nil
+    cond_expr: ^ast.Expression = nil
+    cont_stmt: ^ast.Statement = nil
+
+    if tok_type == .L_Brace {
+        cond_expr = parse_expression(p)
+    } else if tok_type == .Semicolon {
+        for_decl = parse_decl_statement(p)
+        cond_expr = parse_expression(p)
+        expect_token(p, .Semicolon)
+    }
+
+    if p.curr_tok.type != .L_Brace {
+        cont_stmt = parse_assign_statement(p, false)
+    }
+    expect_token(p, .L_Brace)
+    body := parse_block(p)
+    fs := ast.new(ast.For_Statement, start_pos, end_pos(p.prev_tok))
+    fs.decl = for_decl
+    fs.cond_expr = cond_expr
+    fs.cont_stmt = cont_stmt
+    fs.body = body
+    decrement_scope(p)
+    return fs
 }
 
 // TODO: Improve parser error handling with all if-statement parsing functions
@@ -139,16 +182,8 @@ parse_else_if_statement :: proc(p: ^Parser) -> ^ast.Statement {
 }
 
 parse_block :: proc(p: ^Parser) -> []^ast.Statement {
-    p.curr_scope += 1
-    defer p.curr_scope -= 1
-    p.sym_table = symbol.new(p.sym_table)
-
-    defer {
-        block_table := p.sym_table
-        p.sym_table = p.sym_table.outer
-        symbol.destroy(block_table)
-    }
-
+        increment_scope(p)
+        defer decrement_scope(p)
     block: [dynamic]^ast.Statement
 
     for p.curr_tok.type != .R_Brace {
@@ -161,12 +196,26 @@ parse_block :: proc(p: ^Parser) -> []^ast.Statement {
     return block[:]
 }
 
-parse_assign_statement :: proc(p: ^Parser) -> ^ast.Statement {
+increment_scope :: proc(p: ^Parser) {
+    p.curr_scope += 1
+    p.sym_table = symbol.new(p.sym_table)
+}
+
+decrement_scope :: proc(p: ^Parser) {
+    p.curr_scope -= 1
+    old_table := p.sym_table
+    p.sym_table = p.sym_table.outer
+    symbol.destroy(old_table)
+}
+
+parse_assign_statement :: proc(p: ^Parser, expect_semicolon: bool) -> ^ast.Statement {
     start_pos := p.curr_tok.pos
     ident := parse_identifier(p)
     expect_token(p, .Assign)
     expr := parse_expression(p)
-    expect_token(p, .Semicolon)
+    if expect_semicolon {
+        expect_token(p, .Semicolon)
+    }
     as := ast.new(ast.Assignment_Statement, start_pos, end_pos(p.prev_tok))
     if id, valid := ident.derived_expression.(^ast.Identifier); valid {
         as.name = id.name
@@ -596,6 +645,8 @@ reset_to_token :: proc(p: ^Parser, idx: int) {
     p.curr_idx = idx
     if p.curr_idx == 0 {
         p.prev_tok = tokenizer.Token{}
+    } else {
+        p.prev_tok = p.toks[p.curr_idx-1]
     }
     p.curr_tok = p.toks[p.curr_idx]
 }

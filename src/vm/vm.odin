@@ -96,7 +96,6 @@ get_global :: proc(vm: ^Virtual_Machine) {
     stack_push(vm, global_val)
 }
 
-// TODO: Need better strategy to handle locals
 set_local :: proc(vm: ^Virtual_Machine) {
     stack_offset := read_u16(vm)
     if stack_offset == u16(vm.sp - 1) {
@@ -118,7 +117,6 @@ set_local :: proc(vm: ^Virtual_Machine) {
     //}
 }
 
-// TODO: see proc set_local
 get_local :: proc(vm: ^Virtual_Machine) {
     offset := read_u16(vm)
     local_val := vm.stack[offset]

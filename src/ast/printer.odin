@@ -130,6 +130,39 @@ print_stmt :: proc(ap: ^AST_Printer, stmt: Any_Statement) {
         for stmt in st.consequent {
             print_stmt(ap, stmt.derived_statement)
         }
+    case ^For_Statement:
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514For Statement:\n")
+        ap.indent_lvl += 1
+        defer ap.indent_lvl -= 1
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "decl:\n")
+        if st.decl == nil {
+            ap.indent_lvl += 1
+            write_tabs(ap)
+            strings.write_string(&ap.builder, "\u2514nil\n")
+            ap.indent_lvl -= 1
+        } else {
+            print_stmt(ap, st.decl.derived_statement)
+        }
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "cond_expr:\n")
+        print_expr(ap, st.cond_expr.derived_expression)
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "cont_stmt:\n")
+        if st.cont_stmt ==  nil {
+            ap.indent_lvl += 1
+            write_tabs(ap)
+            strings.write_string(&ap.builder, "\u2514nil\n")
+            ap.indent_lvl -= 1
+        } else {
+            print_stmt(ap, st.cont_stmt.derived_statement)
+        }
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "body:\n")
+        for s in st.body {
+            print_stmt(ap, s.derived_statement)
+        }
     }
 
 }
