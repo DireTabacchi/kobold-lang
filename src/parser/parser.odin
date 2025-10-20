@@ -16,6 +16,7 @@ Parser :: struct {
     curr_idx: int,
 
     curr_scope: int,
+    loop_scopes: [dynamic]int,
 
     sym_table: ^symbol.Symbol_Table,
 
@@ -42,6 +43,7 @@ parser_init :: proc(p: ^Parser, tokens: []tokenizer.Token) {
 
 parser_destroy :: proc(p: ^Parser) {
     free(p.prog)
+    delete(p.loop_scopes)
     symbol.destroy(p.sym_table)
 }
 
@@ -71,6 +73,8 @@ parse_statement :: proc(p: ^Parser) -> ^ast.Statement {
         return parse_if_statement(p)
     case .For:
         return parse_for_statement(p)
+    case .Break:
+        return parse_break_statement(p)
     case:
         start_idx := p.curr_idx
         for p.curr_tok.type != .Assign && p.curr_tok.type != .Semicolon {
@@ -99,6 +103,8 @@ parse_for_statement :: proc(p: ^Parser) -> ^ast.Statement {
     expect_token(p, .For)
 
     increment_scope(p)
+
+    append(&p.loop_scopes, p.curr_scope)
 
     start_idx := p.curr_idx
     for p.curr_tok.type != .L_Brace && p.curr_tok.type != .Semicolon {
@@ -130,8 +136,21 @@ parse_for_statement :: proc(p: ^Parser) -> ^ast.Statement {
     fs.cond_expr = cond_expr
     fs.cont_stmt = cont_stmt
     fs.body = body
+    pop(&p.loop_scopes)
     decrement_scope(p)
     return fs
+}
+
+parse_break_statement :: proc(p: ^Parser) -> ^ast.Statement {
+    start_pos := p.curr_tok.pos
+
+    advance_token(p)
+    expect_token(p, .Semicolon)
+    last_loop_scope_idx := len(p.loop_scopes) - 1
+    breaking_scope := p.loop_scopes[last_loop_scope_idx]
+    bs := ast.new(ast.Break_Statement, start_pos, end_pos(p.prev_tok))
+    bs.breaking_scope = breaking_scope
+    return bs
 }
 
 // TODO: Improve parser error handling with all if-statement parsing functions

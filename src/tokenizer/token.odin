@@ -89,6 +89,7 @@ Token_Kind :: enum {
     Else,                   // else
     Switch,                 // switch
     Case,                   // case
+    Break,                  // break
     // -- Types
     Type_Integer,           // int
     Type_Unsigned_Integer,  // uint
@@ -170,6 +171,7 @@ token_list := [Token_Kind]string {
     .Else = "else",
     .Switch = "switch",
     .Case = "case",
+    .Break = "break",
 
     .Type_Integer = "int",
     .Type_Unsigned_Integer = "uint",

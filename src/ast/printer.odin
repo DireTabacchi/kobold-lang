@@ -163,6 +163,13 @@ print_stmt :: proc(ap: ^AST_Printer, stmt: Any_Statement) {
         for s in st.body {
             print_stmt(ap, s.derived_statement)
         }
+    case ^Break_Statement:
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514Break Statement\n")
+        ap.indent_lvl += 1
+        write_tabs(ap)
+        fmt.sbprintfln(&ap.builder, "\u2514breaking_scope: %d", st.breaking_scope)
+        ap.indent_lvl -= 1
     }
 
 }

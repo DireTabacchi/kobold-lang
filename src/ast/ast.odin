@@ -82,6 +82,12 @@ For_Statement :: struct {
     body: []^Statement,
 }
 
+Break_Statement :: struct {
+    using node: Statement,
+    //curr_scope: int,
+    breaking_scope: int,
+}
+
 Binary_Expression :: struct {
     using node: Expression,
     left: ^Expression,
@@ -136,6 +142,7 @@ Any_Statement :: union {
     ^Else_If_Statement,
     ^Else_Statement,
     ^For_Statement,
+    ^Break_Statement,
 }
 
 Any_Expression :: union {
@@ -240,6 +247,8 @@ statement_destroy :: proc(stmt: Any_Statement) {
         if s.body != nil {
             delete(s.body)
         }
+        free(s)
+    case ^Break_Statement:
         free(s)
     }
 }

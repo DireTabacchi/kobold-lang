@@ -303,7 +303,14 @@ scan_keyword_or_identifier :: proc(t: ^Tokenizer, start: int) -> (Token_Kind, st
     case 'a':
         return check_keyword(t, 1, 4, offset, "rray", .Array)
     case 'b':
-        return check_keyword(t, 1, 3, offset, "ool", .Type_Boolean)
+        if t.offset - start > 1 {
+            switch t.src[start+1] {
+            case 'o':
+                return check_keyword(t, 2, 2, offset, "ol", .Type_Boolean)
+            case 'r':
+                return check_keyword(t, 2, 3, offset, "eak", .Break)
+            }
+        }
     case 'c':
         if t.offset - start > 1 {
             switch t.src[start+1] {
