@@ -1,0 +1,10 @@
+var alfa : float = 3.0;
+var charlie : float;
+for var i := 0; i < 10; i = i + 1 {     // declarator (local variable!); expr (bool!); some other expression {block}
+    //var bravo := 1.0;
+    //bravo = alfa * bravo;
+    //charlie = charlie + alfa * bravo;
+    charlie = alfa + charlie;
+    alfa = alfa + alfa;
+}
+charlie;

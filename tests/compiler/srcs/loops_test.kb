@@ -1,0 +1,22 @@
+//var alfa := 1;
+//for var i := 0; i <= 100; {
+//    alfa = alfa + i;
+//    i = alfa;
+//}
+//
+//alfa;
+
+var alfa := 1;
+
+for alfa < 100 {
+    alfa = alfa + alfa;
+}
+
+alfa;
+
+//var alfa := 1;
+//for var i := 0; i <= 100; i = alfa {
+//    alfa = alfa + i;
+//}
+//
+//alfa;
