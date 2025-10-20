@@ -85,7 +85,7 @@ var alfa := 2.19;   // implicitly derives `float`
 They can also be explicitly typed.
 
 ```
-var beta: uint = 219u;     // explicitly typed `float`
+var beta: uint = 219u;     // explicitly typed `uint` (unsigned integer)
 ```
 
 As seen above, if you explicitly type a variable, you must give it the correct type literal.
