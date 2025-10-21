@@ -237,7 +237,9 @@ statement_destroy :: proc(stmt: Any_Statement) {
         if s.decl != nil {
             statement_destroy(s.decl.derived_statement)
         }
-        expression_destroy(s.cond_expr.derived_expression)
+        if s.cond_expr != nil {
+            expression_destroy(s.cond_expr.derived_expression)
+        }
         if s.cont_stmt != nil {
             statement_destroy(s.cont_stmt.derived_statement)
         }

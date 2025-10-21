@@ -147,7 +147,14 @@ print_stmt :: proc(ap: ^AST_Printer, stmt: Any_Statement) {
         }
         write_tabs(ap)
         strings.write_string(&ap.builder, "cond_expr:\n")
-        print_expr(ap, st.cond_expr.derived_expression)
+        if st.cond_expr == nil {
+            ap.indent_lvl += 1
+            write_tabs(ap)
+            strings.write_string(&ap.builder, "\u2514nil\n")
+            ap.indent_lvl -= 1
+        } else {
+            print_expr(ap, st.cond_expr.derived_expression)
+        }
         write_tabs(ap)
         strings.write_string(&ap.builder, "cont_stmt:\n")
         if st.cont_stmt ==  nil {

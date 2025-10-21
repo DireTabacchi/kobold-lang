@@ -142,24 +142,16 @@ compile_statement :: proc(comp: ^Compiler, stmt: ast.Any_Statement) {
         }
 
         cond_loc := u16(len(comp.chunk.code)) - 1
-        compile_expression(comp, st.cond_expr.derived_expression)
-
-        exit_jump := emit_jump(&comp.chunk, byte(Op_Code.JF))
+        conditional_defined := st.cond_expr != nil
+        exit_jump: u16
+        if conditional_defined {
+            compile_expression(comp, st.cond_expr.derived_expression)
+            exit_jump = emit_jump(&comp.chunk, byte(Op_Code.JF))
+        }
 
         begin_scope(comp)
         for s in st.body {
             compile_statement(comp, s.derived_statement)
-        }
-        // Note: This is probably some forsaken way to handle break statements...
-        //       This needs to be rectified somehow.
-        break_locals: int = 0
-        if comp.flag_break {
-            break_stat_idx := len(comp.break_locs) - 1
-            break_stat := comp.break_locs[break_stat_idx]
-            fmt.println(comp.locals)
-            for i := len(comp.locals) - 1; comp.locals[i].scope > break_stat.scope; i -= 1 {
-                break_locals += 1
-            }
         }
         end_scope(comp)
 
@@ -172,6 +164,10 @@ compile_statement :: proc(comp: ^Compiler, stmt: ast.Any_Statement) {
 
         // Note: See note above.
         if comp.flag_break {
+            break_locals: int
+            for br_idx := len(comp.break_locs) - 1; br_idx >= 0 && comp.break_locs[br_idx].scope == comp.curr_scope; br_idx -= 1 {
+                break_locals = comp.break_locs[br_idx].local_count > break_locals ? comp.break_locs[br_idx].local_count : break_locals
+            }
             for break_locals > 0 {
                 emit_byte(&comp.chunk, byte(Op_Code.POP))
                 break_locals -= 1
@@ -181,10 +177,12 @@ compile_statement :: proc(comp: ^Compiler, stmt: ast.Any_Statement) {
                 patch_jump(&comp.chunk, comp.break_locs[br_idx].loc, jmp_loc)
                 pop(&comp.break_locs)
             }
-            comp.flag_break = false
+            comp.flag_break = len(comp.break_locs) > 0
         }
 
-        patch_jump(&comp.chunk, exit_jump)
+        if conditional_defined {
+            patch_jump(&comp.chunk, exit_jump)
+        }
         pop(&comp.loop_scopes)
         end_scope(comp)
     case ^ast.Break_Statement:
@@ -192,7 +190,7 @@ compile_statement :: proc(comp: ^Compiler, stmt: ast.Any_Statement) {
         break_stat: Break_Stat
         breaking_scope_idx := len(comp.loop_scopes) - 1
         break_stat.scope = comp.loop_scopes[breaking_scope_idx]
-        for i := len(comp.locals) - 1; comp.locals[i].scope > break_stat.scope; i -= 1 {
+        for i := len(comp.locals) - 1; i >= 0 && comp.locals[i].scope > break_stat.scope; i -= 1 {
             break_stat.local_count += 1
         }
         break_stat.loc = emit_jump(&comp.chunk, byte(Op_Code.JMP))

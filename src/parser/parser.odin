@@ -120,6 +120,10 @@ parse_for_statement :: proc(p: ^Parser) -> ^ast.Statement {
 
     if tok_type == .L_Brace {
         cond_expr = parse_expression(p)
+        if _, invalid := cond_expr.derived_expression.(^ast.Invalid_Expression); invalid {
+            ast.expression_destroy(cond_expr.derived_expression)
+            cond_expr = nil
+        }
     } else if tok_type == .Semicolon {
         for_decl = parse_decl_statement(p)
         cond_expr = parse_expression(p)
@@ -548,7 +552,6 @@ parse_primary :: proc(p: ^Parser) -> ^ast.Expression {
 
     ie := ast.new(ast.Invalid_Expression, p.prev_tok.pos, p.curr_tok.pos)
     return ie
-    //return nil
 }
 
 parse_ident_selector :: proc(p: ^Parser) -> ^ast.Expression {

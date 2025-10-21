@@ -12,7 +12,7 @@ import "kobold:ast"
 import "kobold:compiler"
 import "kobold:vm"
 
-KOBOLD_VERSION :: "0.0.39"
+KOBOLD_VERSION :: "0.0.40"
 
 main :: proc() {
     when ODIN_DEBUG {   // From Odin Overview
