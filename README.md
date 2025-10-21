@@ -135,3 +135,93 @@ if alfa == 3 {
 
 The general form is `if <condition> { block }`, where `<condition>` is an expression that must evaluate to a Boolean
 value.
+
+There are also the `else if` and `else` statements.
+
+```
+var foo := 7;
+if foo > 7 {
+    var bar := foo + 8;
+} else if foo < 7 {
+    var baz := foo - 2;
+} else {
+    var boz := foo / 2;
+}
+```
+
+There can be as many `else if`s following an `if` statement as needed, and a final `else` statement is optional.
+
+## Loop Statements
+
+There is only one keyword to signal a loop: `for`. Using this keyword with different forms allows for the creation of
+the various loop constructs.
+
+### Traditional For Loop
+
+The first loop construct is the traditional "for-loop". It has three parts:
+
+- a **Declaration Statement**,
+- a **Conditional Expression**,
+- and a **Continue Statement**.
+
+In this form, the *Declaration Statement* and *Conditional Expression* are always required, but the continue expression
+is optional. The *Conditional Expression* must evaluate to a Boolean value.
+
+The following example (from `tests/compiler/srcs/iterative_fib.kb`) shows this form with a *Continue Statement*.
+
+```
+var a := 0;
+var b := 1;
+var n := 10;
+
+for var i := 1; i < n; i = i + 1 {
+    var c := a + b;
+    a = b;
+    b = c;
+}
+```
+
+Similarly, the above program, but without the *Continue Statement* (from `tests/compiler/srcs/iterative_fib2.kb`).
+
+```
+var a := 0;
+var b := 1;
+var n := 10;
+
+for var i := 1; i < n; {
+    var c := a + b;
+    a = b;
+    b = c;
+    i = i + 1;
+}
+```
+
+### While Loop
+
+While the term `while` doesn't exist as a keyword in Kobold, its functionality can be similarly achieved with the
+keyword `for` followed by an *Conditional Expression*. As with the traditional for-loop, the *Conditional Expression*
+must evaluate to a Boolean value.
+
+```
+var foo := 0;
+for foo < 10 {
+    foo = foo + 1;
+}
+```
+
+### "Infinite" Loop
+
+By leaving the three expressions blank, you can achieve an "infinite" loop. The `break` statement allows for exiting the
+innermost loop.
+
+```
+var foo := 0;
+for {
+    foo = foo + 1;
+    if foo > 10 {
+        break;
+    }
+}
+```
+
+The `break` statement can be used in any loop to exit early.
