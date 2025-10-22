@@ -35,9 +35,6 @@ ProcDecl -> "proc" IDENTIFIER "(" IdentifierDeclaratorList? ")" ProcReturnDecl? 
 
 ProcReturnDecl -> "->" TypeSpecifier ;
 
-ProcParamList -> IdentifierDeclarator ","?
-              |  IdentifierDeclarator "," ProcParamList ;
-
 ElseStatement -> "else" ( IfStatement? | "{" Block "}" ) ;
 
 LoopParams -> ConditionalLoopParam | GenericLoopParams ; 

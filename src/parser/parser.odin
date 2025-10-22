@@ -69,12 +69,16 @@ parse_statement :: proc(p: ^Parser) -> ^ast.Statement {
             return nil
         }
         return decl_stmt
+    case .Proc:
+        return parse_proc_decl(p)
     case .If:
         return parse_if_statement(p)
     case .For:
         return parse_for_statement(p)
     case .Break:
         return parse_break_statement(p)
+    case .Return:
+        return parse_return_statement(p)
     case:
         start_idx := p.curr_idx
         for p.curr_tok.type != .Assign && p.curr_tok.type != .Semicolon {
@@ -95,6 +99,67 @@ parse_statement :: proc(p: ^Parser) -> ^ast.Statement {
         }
     }
     return nil
+}
+
+parse_proc_decl :: proc(p: ^Parser) -> ^ast.Statement {
+    start_pos := p.curr_tok.pos
+    advance_token(p)
+    name := parse_identifier(p)
+    expect_token(p, .L_Paren)
+    params := parse_parameter_list(p)
+    expect_token(p, .R_Paren)
+    return_type: ^ast.Type_Specifier
+    if p.curr_tok.type == .Arrow {
+        advance_token(p)
+        return_type = parse_type_specifier(p)
+    }
+
+    expect_token(p, .L_Brace)
+    body := parse_block(p)
+
+    pd := ast.new(ast.Procedure_Declarator, start_pos, end_pos(p.prev_tok))
+    proc_name, _ := name.derived_expression.(^ast.Identifier)
+    pd.name = proc_name.name
+    pd.params = params
+    pd.return_type = return_type
+    pd.body = body
+    ast.expression_destroy(name.derived_expression)
+    return pd
+}
+
+parse_parameter_list :: proc(p: ^Parser) -> []^ast.Statement {
+    pl: [dynamic]^ast.Statement
+    for p.curr_tok.type != .R_Paren {
+        start_pos := p.curr_tok.pos
+        param_name := expect_token(p, .Identifier)
+        expect_token(p, .Colon)
+        type_spec := parse_type_specifier(p)
+
+        pd := ast.new(ast.Parameter_Declarator, start_pos, end_pos(p.prev_tok))
+        pd.name = param_name.text
+        pd.type = type_spec
+        append(&pl, pd)
+
+        next_tok := peek_token(p)
+        if p.curr_tok.type == .Comma && next_tok.type == .R_Paren {
+            advance_token(p)
+        } else if next_tok.type == .Identifier {
+            expect_token(p, .Comma)
+        }
+    }
+    return pl[:]
+}
+
+parse_return_statement :: proc(p: ^Parser) -> ^ast.Statement {
+    start_pos := p.curr_tok.pos
+    advance_token(p)
+    expr := parse_expression(p)
+    expect_token(p, .Semicolon)
+
+    rs := ast.new(ast.Return_Statement, start_pos, end_pos(p.prev_tok))
+    rs.expr = expr
+
+    return rs
 }
 
 // TODO: Improve error handling for for-statements. Perhaps start checker.

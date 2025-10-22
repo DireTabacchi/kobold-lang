@@ -9,8 +9,8 @@ _ :: mem
 import "kobold:tokenizer"
 import "kobold:parser"
 import "kobold:ast"
-import "kobold:compiler"
-import "kobold:vm"
+//import "kobold:compiler"
+//import "kobold:vm"
 
 KOBOLD_VERSION :: "0.0.40"
 
@@ -78,13 +78,13 @@ main :: proc() {
 
     ast.printer_destroy(&printer)
 
-    comp: compiler.Compiler
-    compiler.compiler_init(&comp)
+    //comp: compiler.Compiler
+    //compiler.compiler_init(&comp)
 
-    compiler.compile(&comp, p.prog)
-    defer compiler.compiler_destroy(&comp)
+    //compiler.compile(&comp, p.prog)
+    //defer compiler.compiler_destroy(&comp)
 
-    compiler.print(comp)
+    //compiler.print(comp)
 
     //fmt.println("Constants:")
     //fmt.println(comp.chunk.constants)
@@ -92,12 +92,12 @@ main :: proc() {
     //fmt.println("Globals:")
     //fmt.println(comp.globals)
 
-    virtual_machine: vm.Virtual_Machine
-    vm.vm_init(&virtual_machine, comp.chunk)
+    //virtual_machine: vm.Virtual_Machine
+    //vm.vm_init(&virtual_machine, comp.chunk)
 
-    vm.run(&virtual_machine)
-    fmt.println("=== VM Finished ===")
-    fmt.printfln("Stack top: %v", virtual_machine.stack[virtual_machine.sp-1].value)
+    //vm.run(&virtual_machine)
+    //fmt.println("=== VM Finished ===")
+    //fmt.printfln("Stack top: %v", virtual_machine.stack[virtual_machine.sp-1].value)
     //fmt.printfln("Globals:\n%v", virtual_machine.globals)
-    vm.vm_destroy(&virtual_machine)
+    //vm.vm_destroy(&virtual_machine)
 }

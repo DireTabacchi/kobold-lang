@@ -44,6 +44,25 @@ Declarator :: struct {
     mutable: bool,
 }
 
+Procedure_Declarator :: struct {
+    using node: Statement,
+    name: string,
+    params: []^Statement,
+    return_type: ^Type_Specifier,
+    body: []^Statement,
+}
+
+Parameter_Declarator :: struct {
+    using node: Statement,
+    name: string,
+    type: ^Type_Specifier,
+}
+
+Return_Statement :: struct {
+    using node: Statement,
+    expr: ^Expression,
+}
+
 Assignment_Statement :: struct {
     using node: Statement,
     name: string,
@@ -136,6 +155,8 @@ Invalid_Type :: struct {
 
 Any_Statement :: union {
     ^Declarator,
+    ^Procedure_Declarator,
+    ^Parameter_Declarator,
     ^Expression_Statement,
     ^Assignment_Statement,
     ^If_Statement,
@@ -143,6 +164,7 @@ Any_Statement :: union {
     ^Else_Statement,
     ^For_Statement,
     ^Break_Statement,
+    ^Return_Statement,
 }
 
 Any_Expression :: union {
@@ -194,6 +216,26 @@ statement_destroy :: proc(stmt: Any_Statement) {
         if s.value != nil {
             expression_destroy(s.value.derived_expression)
         }
+        free(s)
+    case ^Procedure_Declarator:
+        for param in s.params {
+            statement_destroy(param.derived_statement)
+        }
+        if s.params != nil {
+            delete(s.params)
+        }
+        if s.return_type != nil {
+            type_specifier_destroy(s.return_type.derived_type)
+        }
+        for body_stmt in s.body {
+            statement_destroy(body_stmt.derived_statement)
+        }
+        if s.body != nil {
+            delete(s.body)
+        }
+        free(s)
+    case ^Parameter_Declarator:
+        type_specifier_destroy(s.type.derived_type)
         free(s)
     case ^Assignment_Statement:
         expression_destroy(s.value.derived_expression)
@@ -252,6 +294,11 @@ statement_destroy :: proc(stmt: Any_Statement) {
         free(s)
     case ^Break_Statement:
         free(s)
+    case ^Return_Statement:
+        if s.expr != nil {
+            expression_destroy(s.expr.derived_expression)
+        }
+        free(s)
     }
 }
 
@@ -269,6 +316,14 @@ expression_destroy :: proc(expr: Any_Expression) {
     case ^Literal:
         free(e)
     case ^Identifier:
+        free(e)
+    case ^Proc_Call:
+        for arg in e.args {
+            expression_destroy(arg.derived_expression)
+        }
+        if e.args != nil {
+            delete(e.args)
+        }
         free(e)
     }
 }

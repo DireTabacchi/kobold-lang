@@ -60,6 +60,53 @@ print_stmt :: proc(ap: ^AST_Printer, stmt: Any_Statement) {
             write_tabs(ap)
             strings.write_string(&ap.builder, "\u2514nil\n")
         }
+    case ^Procedure_Declarator:
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514Procedure Declarator:\n")
+        ap.indent_lvl += 1
+        defer ap.indent_lvl -= 1
+        write_tabs(ap)
+        fmt.sbprintfln(&ap.builder, "\u251Cname: %s", st.name)
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u251Cparams:")
+        if len(st.params) == 0 {
+            strings.write_string(&ap.builder, " <empty>\n")
+        } else {
+            strings.write_string(&ap.builder, "\n")
+            for param in st.params {
+                print_stmt(ap, param.derived_statement)
+            }
+        }
+        if st.return_type != nil {
+            write_tabs(ap)
+            strings.write_string(&ap.builder, "\u251Creturn_type:\n")
+            ap.indent_lvl += 1
+            write_tabs(ap)
+            print_type_specifier(ap, st.return_type.derived_type)
+            ap.indent_lvl -= 1
+
+        }
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514body:\n")
+        if len(st.body) == 0 {
+            ap.indent_lvl += 1
+            write_tabs(ap)
+            strings.write_string(&ap.builder, "<empty>\n")
+            ap.indent_lvl -= 1
+        } else {
+            for body_stmt in st.body {
+                print_stmt(ap, body_stmt.derived_statement)
+            }
+        }
+    case ^Parameter_Declarator:
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514Parameter Declarator:\n")
+        ap.indent_lvl += 1
+        defer ap.indent_lvl -= 1
+        write_tabs(ap)
+        fmt.sbprintfln(&ap.builder, "\u251Cname: %s", st.name)
+        write_tabs(ap)
+        print_type_specifier(ap, st.type.derived_type)
     case ^Assignment_Statement:
         write_tabs(ap)
         strings.write_string(&ap.builder, "\u2514Assignment Statement:\n")
@@ -84,8 +131,8 @@ print_stmt :: proc(ap: ^AST_Printer, stmt: Any_Statement) {
         print_expr(ap, st.cond.derived_expression)
         write_tabs(ap)
         strings.write_string(&ap.builder, "consequent:\n")
-        for stmt in st.consequent {
-            print_stmt(ap, stmt.derived_statement)
+        for cons in st.consequent {
+            print_stmt(ap, cons.derived_statement)
         }
         write_tabs(ap)
         strings.write_string(&ap.builder, "alternative:\n")
@@ -107,8 +154,8 @@ print_stmt :: proc(ap: ^AST_Printer, stmt: Any_Statement) {
         print_expr(ap, st.cond.derived_expression)
         write_tabs(ap)
         strings.write_string(&ap.builder, "consequent:\n")
-        for stmt in st.consequent {
-            print_stmt(ap, stmt.derived_statement)
+        for cons in st.consequent {
+            print_stmt(ap, cons.derived_statement)
         }
         write_tabs(ap)
         strings.write_string(&ap.builder, "alternative:\n")
@@ -127,8 +174,8 @@ print_stmt :: proc(ap: ^AST_Printer, stmt: Any_Statement) {
         defer ap.indent_lvl -= 1
         write_tabs(ap)
         strings.write_string(&ap.builder, "\u2514consequent:\n")
-        for stmt in st.consequent {
-            print_stmt(ap, stmt.derived_statement)
+        for cons in st.consequent {
+            print_stmt(ap, cons.derived_statement)
         }
     case ^For_Statement:
         write_tabs(ap)
@@ -167,8 +214,8 @@ print_stmt :: proc(ap: ^AST_Printer, stmt: Any_Statement) {
         }
         write_tabs(ap)
         strings.write_string(&ap.builder, "body:\n")
-        for s in st.body {
-            print_stmt(ap, s.derived_statement)
+        for body_stmt in st.body {
+            print_stmt(ap, body_stmt.derived_statement)
         }
     case ^Break_Statement:
         write_tabs(ap)
@@ -177,6 +224,14 @@ print_stmt :: proc(ap: ^AST_Printer, stmt: Any_Statement) {
         write_tabs(ap)
         fmt.sbprintfln(&ap.builder, "\u2514breaking_scope: %d", st.breaking_scope)
         ap.indent_lvl -= 1
+    case ^Return_Statement:
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514Return Statement:\n")
+        ap.indent_lvl += 1
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514expr:\n")
+        print_expr(ap, st.expr.derived_expression)
+        ap.indent_lvl -= 1
     }
 
 }
@@ -184,9 +239,9 @@ print_stmt :: proc(ap: ^AST_Printer, stmt: Any_Statement) {
 print_type_specifier :: proc(ap: ^AST_Printer, type: Any_Type) {
     switch t in type {
     case ^Builtin_Type:
-        fmt.sbprintfln(&ap.builder, "type: %s", t.type)
+        fmt.sbprintfln(&ap.builder, "\u2514type: %s", t.type)
     case ^Invalid_Type:
-        strings.write_string(&ap.builder, "type: INVALID\n")
+        strings.write_string(&ap.builder, "\u2514type: INVALID\n")
     }
 }
 
@@ -243,8 +298,15 @@ print_expr :: proc(ap: ^AST_Printer, expr: Any_Expression) {
         fmt.sbprintfln(&ap.builder, "\u251Cname: %s", ex.name)
         write_tabs(ap)
         strings.write_string(&ap.builder, "\u2514args:\n")
-        for arg in ex.args {
-            print_expr(ap, arg.derived_expression)
+        if len(ex.args) == 0 {
+            ap.indent_lvl += 1
+            write_tabs(ap)
+            strings.write_string(&ap.builder, "<empty>\n")
+            ap.indent_lvl -= 1
+        } else {
+            for arg in ex.args {
+                print_expr(ap, arg.derived_expression)
+            }
         }
     case ^Selector:
         write_tabs(ap)
