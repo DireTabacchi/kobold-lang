@@ -124,6 +124,15 @@ parse_proc_decl :: proc(p: ^Parser) -> ^ast.Statement {
     pd.return_type = return_type
     pd.body = body
     ast.expression_destroy(name.derived_expression)
+
+    if _, exists := symbol.symbol_exists(pd.name, p.sym_table^); exists {
+        errorf_msg(p, pd.start, "name `%s` already used", pd.name)
+        return pd
+    }
+
+    proc_symbol := symbol.Symbol{ pd.name, .Proc, false, p.curr_scope, len(p.sym_table.symbols) }
+    append(&p.sym_table.symbols, proc_symbol)
+
     return pd
 }
 
@@ -154,6 +163,9 @@ parse_return_statement :: proc(p: ^Parser) -> ^ast.Statement {
     start_pos := p.curr_tok.pos
     advance_token(p)
     expr := parse_expression(p)
+    if _, invalid := expr.derived_expression.(^ast.Invalid_Expression); invalid {
+        expr = nil
+    }
     expect_token(p, .Semicolon)
 
     rs := ast.new(ast.Return_Statement, start_pos, end_pos(p.prev_tok))
