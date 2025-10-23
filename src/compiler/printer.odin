@@ -1,19 +1,26 @@
 package compiler
 
 import "core:fmt"
-//import "kobold:code"
+import "kobold:code"
 
 print :: proc(comp: Compiler) {
-    fmt.println("======= <Script> =======")
-    fmt.println("Bytecode:", comp.chunk.code)
-    fmt.printfln("Bytecode Size: %d bytes", len(comp.chunk.code))
-    for i := 0; i < len(comp.chunk.code); i += 1 {
-        switch comp.chunk.code[i] {
+    print_procedure(comp.main_proc^)
+    for p in comp.procs {
+        print_procedure(p^)
+    }
+}
+
+print_procedure :: proc(procedure: code.Procedure) {
+    if procedure.type == .Script {
+        fmt.printfln("Script: (%d bytes)", len(procedure.chunk.code))
+    }
+    for i := 0; i < len(procedure.chunk.code); i += 1 {
+        switch procedure.chunk.code[i] {
         case u8(Op_Code.PUSH):
-            hi := comp.chunk.code[i+1]
-            lo := comp.chunk.code[i+2]
+            hi := procedure.chunk.code[i+1]
+            lo := procedure.chunk.code[i+2]
             idx : u16 = (u16(hi) << 8) | u16(lo)
-            fmt.printfln("%8X    %-8s %#8X    %- 16v", i, "PUSH", idx, comp.chunk.constants[idx].value)
+            fmt.printfln("%8X    %-8s %#8X    %- 16v", i, "PUSH", idx, procedure.chunk.constants[idx].value)
             i += 2
         case u8(Op_Code.POP):
             fmt.printfln("%8X    %-8s", i, "POP")
@@ -50,38 +57,38 @@ print :: proc(comp: Compiler) {
         case u8(Op_Code.NOT):
             fmt.printfln("%8X    %-8s", i, "NOT")
         case u8(Op_Code.JMP):
-            hi := comp.chunk.code[i+1]
-            lo := comp.chunk.code[i+2]
+            hi := procedure.chunk.code[i+1]
+            lo := procedure.chunk.code[i+2]
             loc : u16 = (u16(hi) << 8) | u16(lo)
             fmt.printfln("%8X    %-8s %#8X", i, "JMP", loc)
             i += 2
         case u8(Op_Code.JF):
-            hi := comp.chunk.code[i+1]
-            lo := comp.chunk.code[i+2]
+            hi := procedure.chunk.code[i+1]
+            lo := procedure.chunk.code[i+2]
             loc : u16 = (u16(hi) << 8) | u16(lo)
             fmt.printfln("%8X    %-8s %#8X", i, "JF", loc)
             i += 2
         case u8(Op_Code.SETG):
-            hi := comp.chunk.code[i+1]
-            lo := comp.chunk.code[i+2]
+            hi := procedure.chunk.code[i+1]
+            lo := procedure.chunk.code[i+2]
             idx : u16 = (u16(hi) << 8) | u16(lo)
             fmt.printfln("%8X    %-8s %#8X", i, "SETG", idx)
             i += 2
         case u8(Op_Code.GETG):
-            hi := comp.chunk.code[i+1]
-            lo := comp.chunk.code[i+2]
+            hi := procedure.chunk.code[i+1]
+            lo := procedure.chunk.code[i+2]
             idx : u16 = (u16(hi) << 8) | u16(lo)
             fmt.printfln("%8X    %-8s %#8X", i, "GETG", idx)
             i += 2
         case u8(Op_Code.SETL):
-            hi := comp.chunk.code[i+1]
-            lo := comp.chunk.code[i+2]
+            hi := procedure.chunk.code[i+1]
+            lo := procedure.chunk.code[i+2]
             idx : u16 = (u16(hi) << 8) | u16(lo)
             fmt.printfln("%8X    %-8s %#8X", i, "SETL", idx)
             i += 2
         case u8(Op_Code.GETL):
-            hi := comp.chunk.code[i+1]
-            lo := comp.chunk.code[i+2]
+            hi := procedure.chunk.code[i+1]
+            lo := procedure.chunk.code[i+2]
             idx : u16 = (u16(hi) << 8) | u16(lo)
             fmt.printfln("%8X    %-8s %#8X", i, "GETL", idx)
             i += 2

@@ -58,7 +58,7 @@ print_stmt :: proc(ap: ^AST_Printer, stmt: Any_Statement) {
             ap.indent_lvl += 1
             defer ap.indent_lvl -= 1
             write_tabs(ap)
-            strings.write_string(&ap.builder, "\u2514nil\n")
+            strings.write_string(&ap.builder, "<nil>\n")
         }
     case ^Procedure_Declarator:
         write_tabs(ap)
@@ -141,7 +141,7 @@ print_stmt :: proc(ap: ^AST_Printer, stmt: Any_Statement) {
         } else {
             ap.indent_lvl += 1
             write_tabs(ap)
-            strings.write_string(&ap.builder, "\u2514nil\n")
+            strings.write_string(&ap.builder, "<nil>\n")
             ap.indent_lvl -= 1
         }
     case ^Else_If_Statement:
@@ -228,10 +228,17 @@ print_stmt :: proc(ap: ^AST_Printer, stmt: Any_Statement) {
         write_tabs(ap)
         strings.write_string(&ap.builder, "\u2514Return Statement:\n")
         ap.indent_lvl += 1
+        defer ap.indent_lvl -= 1
         write_tabs(ap)
         strings.write_string(&ap.builder, "\u2514expr:\n")
-        print_expr(ap, st.expr.derived_expression)
-        ap.indent_lvl -= 1
+        if st.expr == nil {
+            ap.indent_lvl += 1
+            write_tabs(ap)
+            strings.write_string(&ap.builder, "<nil>\n")
+            ap.indent_lvl -= 1
+        } else {
+            print_expr(ap, st.expr.derived_expression)
+        }
     }
 
 }
