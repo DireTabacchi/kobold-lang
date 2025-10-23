@@ -105,16 +105,6 @@ set_local :: proc(vm: ^Virtual_Machine) {
         val := stack_pop(vm)
         vm.stack[stack_offset] = val
     }
-
-    //stack_push(vm, val)
-    //if idx == u16(len(vm.locals)) {
-    //    append(&vm.locals, object.Local{ val, 0 })
-    //} else if idx < u16(len(vm.locals)) {
-    //    local_val := &vm.locals[idx]
-    //    local_val.value = val.value
-    //} else {
-    //    fmt.eprintln("Runtime error: Unable to resolve local variable")
-    //}
 }
 
 get_local :: proc(vm: ^Virtual_Machine) {

@@ -9,7 +9,6 @@ Value :: struct {
 Local :: struct {
     using val: Value,
     scope: int,
-    loc: u16,
 }
 
 Global :: struct {
