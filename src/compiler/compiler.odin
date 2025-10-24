@@ -1,5 +1,8 @@
 package compiler
 
+// TODO: Implement procedure arguments
+// TODO: Implement procedure returns
+
 import "core:fmt"
 import "core:strconv"
 import "core:strings"
@@ -22,7 +25,8 @@ Compiler :: struct {
 
     curr_scope: int,
     loop_scopes: [dynamic]int,
-    break_locs: [dynamic]Break_Stat,
+    proc_scopes: [dynamic]int,
+    break_stats: [dynamic]Break_Stat,
     flag_break: bool,
 
     sym_table: ^symbol.Symbol_Table,
@@ -40,11 +44,18 @@ compiler_init :: proc(comp: ^Compiler) {
 }
 
 compiler_destroy :: proc(comp: ^Compiler) {
-    //code.chunk_destroy(&comp.chunk)
+    for p in comp.procs {
+        code.chunk_destroy(&p.chunk)
+        free(p)
+    }
+    code.chunk_destroy(&comp.main_proc.chunk)
+    free(comp.main_proc)
+    delete(comp.procs)
     delete(comp.globals)
     delete(comp.locals)
     delete(comp.loop_scopes)
-    delete(comp.break_locs)
+    delete(comp.proc_scopes)
+    delete(comp.break_stats)
     symbol.destroy(comp.sym_table)
 }
 
@@ -163,19 +174,19 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^code.Procedure, stmt: ast
 
         if comp.flag_break {
             break_locals: int
-            for br_idx := len(comp.break_locs) - 1; br_idx >= 0 && comp.break_locs[br_idx].scope == comp.curr_scope; br_idx -= 1 {
-                break_locals = comp.break_locs[br_idx].local_count > break_locals ? comp.break_locs[br_idx].local_count : break_locals
+            for br_idx := len(comp.break_stats) - 1; br_idx >= 0 && comp.break_stats[br_idx].scope == comp.curr_scope; br_idx -= 1 {
+                break_locals = comp.break_stats[br_idx].local_count > break_locals ? comp.break_stats[br_idx].local_count : break_locals
             }
             for break_locals > 0 {
                 emit_byte(&curr_proc.chunk, byte(Op_Code.POP))
                 break_locals -= 1
             }
-            for br_idx := len(comp.break_locs) - 1; br_idx >= 0 && comp.break_locs[br_idx].scope == comp.curr_scope; br_idx -= 1 {
-                jmp_loc := u16(len(curr_proc.chunk.code) - comp.break_locs[br_idx].local_count) - 1
-                patch_jump(&curr_proc.chunk, comp.break_locs[br_idx].loc, jmp_loc)
-                pop(&comp.break_locs)
+            for br_idx := len(comp.break_stats) - 1; br_idx >= 0 && comp.break_stats[br_idx].scope == comp.curr_scope; br_idx -= 1 {
+                jmp_loc := u16(len(curr_proc.chunk.code) - comp.break_stats[br_idx].local_count) - 1
+                patch_jump(&curr_proc.chunk, comp.break_stats[br_idx].loc, jmp_loc)
+                pop(&comp.break_stats)
             }
-            comp.flag_break = len(comp.break_locs) > 0
+            comp.flag_break = len(comp.break_stats) > 0
         }
 
         if conditional_defined {
@@ -192,7 +203,33 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^code.Procedure, stmt: ast
             break_stat.local_count += 1
         }
         break_stat.loc = emit_jump(&curr_proc.chunk, byte(Op_Code.JMP))
-        append(&comp.break_locs, break_stat)
+        append(&comp.break_stats, break_stat)
+    case ^ast.Procedure_Declarator:
+        new_proc := code.new_proc(st.name, byte(len(st.params)), code.Proc_Type.Proc)
+        begin_scope(comp)
+        append(&comp.proc_scopes, comp.curr_scope)
+        for s in st.body {
+            compile_statement(comp, new_proc, s.derived_statement)
+        }
+        pop(&comp.proc_scopes)
+        end_scope(comp, new_proc)
+
+        emit_byte(&new_proc.chunk, byte(Op_Code.RET))
+
+        sym := symbol.Symbol{ new_proc.name, tokenizer.Token_Kind.Proc, false, comp.curr_scope, len(comp.procs) }
+
+        append(&comp.sym_table.symbols, sym)
+        append(&comp.procs, new_proc)
+    case ^ast.Return_Statement:
+        proc_scope_idx := len(comp.proc_scopes) - 1
+        return_scope := comp.proc_scopes[proc_scope_idx]
+        for i := len(comp.locals) - 1; i >= 0 && comp.locals[i].scope >= return_scope; i -= 1 {
+            emit_byte(&curr_proc.chunk, byte(Op_Code.POP))
+        }
+        if st.expr != nil {
+            compile_expression(comp, curr_proc, st.expr.derived_expression)
+        }
+        emit_byte(&curr_proc.chunk, byte(Op_Code.RET))
     }
 }
 
@@ -353,6 +390,13 @@ compile_expression :: proc(comp: ^Compiler, curr_proc: ^code.Procedure, expr: as
             emit_byte(&curr_proc.chunk, byte(Op_Code.GETL))
         }
         emit_bytes(&curr_proc.chunk, u16(idx))
+    case ^ast.Proc_Call:
+        sym, exists := resolve_symbol(comp, e.name)
+        if !exists {
+            fmt.eprintfln("could not resolve symbol `%s`", e.name)
+        }
+        emit_byte(&curr_proc.chunk, byte(Op_Code.CALL))
+        emit_bytes(&curr_proc.chunk, u16(sym.id))
     }
 }
 

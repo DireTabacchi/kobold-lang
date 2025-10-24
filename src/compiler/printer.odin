@@ -13,6 +13,8 @@ print :: proc(comp: Compiler) {
 print_procedure :: proc(procedure: code.Procedure) {
     if procedure.type == .Script {
         fmt.printfln("Script: (%d bytes)", len(procedure.chunk.code))
+    } else if procedure.type == .Proc {
+        fmt.printfln("Proc %s: (%d bytes)", procedure.name, len(procedure.chunk.code))
     }
     for i := 0; i < len(procedure.chunk.code); i += 1 {
         switch procedure.chunk.code[i] {
@@ -56,6 +58,12 @@ print_procedure :: proc(procedure: code.Procedure) {
             fmt.printfln("%8X    %-8s", i, "NEG")
         case u8(Op_Code.NOT):
             fmt.printfln("%8X    %-8s", i, "NOT")
+        case u8(Op_Code.CALL):
+            hi := procedure.chunk.code[i+1]
+            lo := procedure.chunk.code[i+2]
+            loc : u16 = (u16(hi) << 8) | u16(lo)
+            fmt.printfln("%8X    %-8s %#8X", i, "CALL", loc)
+            i += 2
         case u8(Op_Code.JMP):
             hi := procedure.chunk.code[i+1]
             lo := procedure.chunk.code[i+2]

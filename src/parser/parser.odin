@@ -164,6 +164,7 @@ parse_return_statement :: proc(p: ^Parser) -> ^ast.Statement {
     advance_token(p)
     expr := parse_expression(p)
     if _, invalid := expr.derived_expression.(^ast.Invalid_Expression); invalid {
+        free(expr)
         expr = nil
     }
     expect_token(p, .Semicolon)
@@ -661,6 +662,12 @@ parse_proc_call :: proc(p: ^Parser) -> ^ast.Expression {
     pc := ast.new(ast.Proc_Call, start_pos, end_pos(p.prev_tok))
     pc.name = name.text
     pc.args = arg_list
+
+    if _, exists := symbol.symbol_exists(pc.name, p.sym_table^); !exists {
+        errorf_msg(p, pc.start, "call to undefined procedure `%s`", pc.name)
+        return pc
+    }
+
     return pc
 }
 

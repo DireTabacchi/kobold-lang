@@ -1,5 +1,7 @@
 package vm
 
+// TODO: Refactor VM for new execution interface with procedures
+
 import "core:fmt"
 
 import "kobold:code"
