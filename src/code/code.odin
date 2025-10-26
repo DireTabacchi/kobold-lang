@@ -34,7 +34,9 @@ Op_Code :: enum byte {
             // Op1: 2-byte location on the stack.
     GETL,   // Get a the value of a local variable from the stack, and push its value on the stack.
             // Op1: 2-byte location on the stack.
-    RET,    // (Planned) Return (a possible value) from function call. (Current) Exit program execution.
+    RET,    // Return (a possible value) from a function call. Can also be used to stop program execution.
+            // Will clean up local variables from the stack that may have been created during function execution.
+            // (Planned) Return (a possible value) from function call. (Current) Exit program execution.
 }
 
 Byte_Code :: byte

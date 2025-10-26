@@ -1,8 +1,5 @@
 package compiler
 
-// TODO: Implement procedure arguments
-// TODO: Implement procedure returns
-
 import "core:fmt"
 import "core:strconv"
 import "core:strings"
@@ -111,7 +108,7 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^code.Procedure, stmt: ast
         for s in st.consequent {
             compile_statement(comp, curr_proc, s.derived_statement)
         }
-        end_scope(comp, curr_proc)
+        end_scope(comp, curr_proc, false)
         if st.alternative != nil {
             end_jump := emit_jump(&curr_proc.chunk, byte(Op_Code.JMP))
             patch_jump(&curr_proc.chunk, else_jump)
@@ -127,7 +124,7 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^code.Procedure, stmt: ast
         for s in st.consequent {
             compile_statement(comp, curr_proc, s.derived_statement)
         }
-        end_scope(comp, curr_proc)
+        end_scope(comp, curr_proc, false)
         if st.alternative != nil {
             end_jump := emit_jump(&curr_proc.chunk, byte(Op_Code.JMP))
             patch_jump(&curr_proc.chunk, else_jump)
@@ -141,7 +138,7 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^code.Procedure, stmt: ast
         for s in st.consequent {
             compile_statement(comp, curr_proc, s.derived_statement)
         }
-        end_scope(comp, curr_proc)
+        end_scope(comp, curr_proc, false)
     case ^ast.For_Statement:
         begin_scope(comp)
 
@@ -163,7 +160,7 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^code.Procedure, stmt: ast
         for s in st.body {
             compile_statement(comp, curr_proc, s.derived_statement)
         }
-        end_scope(comp, curr_proc)
+        end_scope(comp, curr_proc, false)
 
         if st.cont_stmt != nil {
             compile_statement(comp, curr_proc, st.cont_stmt.derived_statement)
@@ -193,7 +190,7 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^code.Procedure, stmt: ast
             patch_jump(&curr_proc.chunk, exit_jump)
         }
         pop(&comp.loop_scopes)
-        end_scope(comp, curr_proc)
+        end_scope(comp, curr_proc, false)
     case ^ast.Break_Statement:
         comp.flag_break = true
         break_stat: Break_Stat
@@ -204,28 +201,38 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^code.Procedure, stmt: ast
         }
         break_stat.loc = emit_jump(&curr_proc.chunk, byte(Op_Code.JMP))
         append(&comp.break_stats, break_stat)
+
     case ^ast.Procedure_Declarator:
         new_proc := code.new_proc(st.name, byte(len(st.params)), code.Proc_Type.Proc)
+        if st.return_type == nil {
+            new_proc.return_type = object.Value_Kind.Nil
+        }
         begin_scope(comp)
         append(&comp.proc_scopes, comp.curr_scope)
+        for param in st.params {
+            if param_stmt, ok := param.derived_statement.(^ast.Parameter_Declarator); ok {
+                if param_type, valid := param_stmt.type.derived_type.(^ast.Builtin_Type); valid {
+                    make_local(comp, param_stmt.name, param_type.type, false)
+                }
+            }
+        }
         for s in st.body {
             compile_statement(comp, new_proc, s.derived_statement)
         }
         pop(&comp.proc_scopes)
-        end_scope(comp, new_proc)
+        end_scope(comp, new_proc, true)
 
-        emit_byte(&new_proc.chunk, byte(Op_Code.RET))
+        last_st := st.body[len(st.body)-1]
+        if _, is_return := last_st.derived_statement.(^ast.Return_Statement); !is_return {
+            emit_byte(&new_proc.chunk, byte(Op_Code.RET))
+        }
 
         sym := symbol.Symbol{ new_proc.name, tokenizer.Token_Kind.Proc, false, comp.curr_scope, len(comp.procs) }
 
         append(&comp.sym_table.symbols, sym)
         append(&comp.procs, new_proc)
+
     case ^ast.Return_Statement:
-        proc_scope_idx := len(comp.proc_scopes) - 1
-        return_scope := comp.proc_scopes[proc_scope_idx]
-        for i := len(comp.locals) - 1; i >= 0 && comp.locals[i].scope >= return_scope; i -= 1 {
-            emit_byte(&curr_proc.chunk, byte(Op_Code.POP))
-        }
         if st.expr != nil {
             compile_expression(comp, curr_proc, st.expr.derived_expression)
         }
@@ -395,6 +402,9 @@ compile_expression :: proc(comp: ^Compiler, curr_proc: ^code.Procedure, expr: as
         if !exists {
             fmt.eprintfln("could not resolve symbol `%s`", e.name)
         }
+        for arg in e.args {
+            compile_expression(comp, curr_proc, arg.derived_expression)
+        }
         emit_byte(&curr_proc.chunk, byte(Op_Code.CALL))
         emit_bytes(&curr_proc.chunk, u16(sym.id))
     }
@@ -486,11 +496,13 @@ begin_scope :: proc(comp: ^Compiler) {
     comp.sym_table = symbol.new(comp.sym_table)
 }
 
-end_scope :: proc(comp: ^Compiler, curr_proc: ^code.Procedure) {
+end_scope :: proc(comp: ^Compiler, curr_proc: ^code.Procedure, is_proc_scope: bool) {
     for i := len(comp.locals) - 1; i >= 0; i -= 1 {
-        if comp.locals[i].scope == comp.curr_scope {
+        if len(comp.locals) > 0 && comp.locals[i].scope >= comp.curr_scope {
             pop(&comp.locals)
-            emit_byte(&curr_proc.chunk, byte(Op_Code.POP))
+            if !is_proc_scope {
+                emit_byte(&curr_proc.chunk, byte(Op_Code.POP))
+            }
         }
     }
     comp.curr_scope -= 1

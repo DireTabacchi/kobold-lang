@@ -16,6 +16,7 @@ Global :: struct {
 }
 
 Value_Kind :: enum {
+    Nil,
     Integer,
     Unsigned_Integer,
     Float,

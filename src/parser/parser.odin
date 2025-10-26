@@ -19,10 +19,19 @@ Parser :: struct {
     loop_scopes: [dynamic]int,
 
     sym_table: ^symbol.Symbol_Table,
+    proc_table: [dynamic]Proc_Info,
 
     error_count: int,
 
     prog: ^ast.Program,
+}
+
+Proc_Info :: struct {
+    name: string,
+    arity: byte,
+    return_type: ^ast.Type_Specifier,
+    decl_scope: int,
+    id: int,
 }
 
 parser_init :: proc(p: ^Parser, tokens: []tokenizer.Token) {
@@ -44,6 +53,7 @@ parser_init :: proc(p: ^Parser, tokens: []tokenizer.Token) {
 parser_destroy :: proc(p: ^Parser) {
     free(p.prog)
     delete(p.loop_scopes)
+    delete(p.proc_table)
     symbol.destroy(p.sym_table)
 }
 
@@ -62,15 +72,13 @@ parse :: proc(p: ^Parser) {
 
 parse_statement :: proc(p: ^Parser) -> ^ast.Statement {
     #partial switch p.curr_tok.type {
-    case .Var, .Const:
+    case .Var, .Const, .Proc:
         decl_stmt := parse_decl_statement(p)
         if decl_stmt == nil {
             error(p, p.curr_tok.pos, "error parsing declaration statement")
             return nil
         }
         return decl_stmt
-    case .Proc:
-        return parse_proc_decl(p)
     case .If:
         return parse_if_statement(p)
     case .For:
@@ -106,16 +114,18 @@ parse_proc_decl :: proc(p: ^Parser) -> ^ast.Statement {
     advance_token(p)
     name := parse_identifier(p)
     expect_token(p, .L_Paren)
+    increment_scope(p)
     params := parse_parameter_list(p)
     expect_token(p, .R_Paren)
-    return_type: ^ast.Type_Specifier
+    return_type: ^ast.Type_Specifier = nil
     if p.curr_tok.type == .Arrow {
         advance_token(p)
         return_type = parse_type_specifier(p)
     }
 
     expect_token(p, .L_Brace)
-    body := parse_block(p)
+    body := parse_block(p, false)
+    decrement_scope(p)
 
     pd := ast.new(ast.Procedure_Declarator, start_pos, end_pos(p.prev_tok))
     proc_name, _ := name.derived_expression.(^ast.Identifier)
@@ -130,8 +140,11 @@ parse_proc_decl :: proc(p: ^Parser) -> ^ast.Statement {
         return pd
     }
 
-    proc_symbol := symbol.Symbol{ pd.name, .Proc, false, p.curr_scope, len(p.sym_table.symbols) }
+    proc_symbol := symbol.Symbol{ pd.name, .Proc, false, p.curr_scope, len(p.proc_table) }
     append(&p.sym_table.symbols, proc_symbol)
+
+    proc_info := Proc_Info { pd.name, byte(len(pd.params)), pd.return_type, p.curr_scope, len(p.proc_table) }
+    append(&p.proc_table, proc_info)
 
     return pd
 }
@@ -148,6 +161,13 @@ parse_parameter_list :: proc(p: ^Parser) -> []^ast.Statement {
         pd.name = param_name.text
         pd.type = type_spec
         append(&pl, pd)
+
+        param_type, exists := pd.type.derived_type.(^ast.Builtin_Type)
+        param_symbol := symbol.Symbol{ pd.name, .Invalid, false, p.curr_scope, len(p.sym_table.symbols)  }
+        if exists {
+            param_symbol.type = param_type.type
+        }
+        append(&p.sym_table.symbols, param_symbol)
 
         next_tok := peek_token(p)
         if p.curr_tok.type == .Comma && next_tok.type == .R_Paren {
@@ -212,7 +232,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^ast.Statement {
         cont_stmt = parse_assign_statement(p, false)
     }
     expect_token(p, .L_Brace)
-    body := parse_block(p)
+    body := parse_block(p, true)
     fs := ast.new(ast.For_Statement, start_pos, end_pos(p.prev_tok))
     fs.decl = for_decl
     fs.cond_expr = cond_expr
@@ -241,7 +261,7 @@ parse_if_statement :: proc(p: ^Parser) -> ^ast.Statement {
     advance_token(p)
     cond_expr := parse_expression(p)
     expect_token(p, .L_Brace)
-    consequent := parse_block(p)
+    consequent := parse_block(p, true)
     alt: ^ast.Statement = nil
     if p.curr_tok.type == .Else {
         advance_token(p)
@@ -260,7 +280,7 @@ parse_else_if_statement :: proc(p: ^Parser) -> ^ast.Statement {
     if tok.type == .If {
         cond_expr := parse_expression(p)
         expect_token(p, .L_Brace)
-        consequent := parse_block(p)
+        consequent := parse_block(p, true)
         alt: ^ast.Statement = nil
         if p.curr_tok.type == .Else {
             advance_token(p)
@@ -272,7 +292,7 @@ parse_else_if_statement :: proc(p: ^Parser) -> ^ast.Statement {
         ei.alternative = alt
         return ei
     } else if tok.type == .L_Brace {
-        consequent := parse_block(p)
+        consequent := parse_block(p, true)
         es := ast.new(ast.Else_Statement, start_pos, end_pos(p.prev_tok))
         es.consequent = consequent
         return es
@@ -282,9 +302,11 @@ parse_else_if_statement :: proc(p: ^Parser) -> ^ast.Statement {
     }
 }
 
-parse_block :: proc(p: ^Parser) -> []^ast.Statement {
+parse_block :: proc(p: ^Parser, do_scoping: bool) -> []^ast.Statement {
+    if do_scoping {
         increment_scope(p)
         defer decrement_scope(p)
+    }
     block: [dynamic]^ast.Statement
 
     for p.curr_tok.type != .R_Brace {
@@ -333,6 +355,8 @@ parse_decl_statement :: proc(p: ^Parser) -> ^ast.Statement {
         return parse_const_decl(p)
     case .Var:
         return parse_var_decl(p)
+    case .Proc:
+        return parse_proc_decl(p)
     }
     return nil
 }
@@ -504,6 +528,24 @@ expression_type :: proc(p: Parser, expr: ^ast.Expression) -> ^ast.Type_Specifier
         }
         ts := ast.new(ast.Builtin_Type, expr.start, expr.end)
         ts.type = type
+        return ts
+    case ^ast.Proc_Call:
+        name := e.name
+        type: tokenizer.Token_Kind
+        sym, exists := symbol.symbol_exists(name, p.sym_table^)
+        if exists {
+            type = sym.type
+        } else {
+            it := ast.new(ast.Invalid_Type, expr.start, expr.end)
+            return it
+        }
+        ts := ast.new(ast.Builtin_Type, expr.start, expr.end)
+        proc_info := p.proc_table[sym.id]
+        if bt, valid := proc_info.return_type.derived_type.(^ast.Builtin_Type); valid {
+            ts.type = bt.type
+        } else {
+            ts.type = tokenizer.Token_Kind.Invalid
+        }
         return ts
     case:
         it := ast.new(ast.Invalid_Type, expr.start, expr.end)

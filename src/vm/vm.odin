@@ -1,6 +1,7 @@
 package vm
 
 // TODO: Refactor VM for new execution interface with procedures
+// TODO: VM frames and stack should probably be arena'd
 
 import "core:fmt"
 
@@ -9,47 +10,71 @@ import "kobold:object"
 
 Op_Code :: code.Op_Code
 
-STACK_MAX :: 4096
+FRAME_MAX :: 64
+STACK_MAX :: FRAME_MAX * 255
+
+Call_Frame :: struct {
+    procedure: ^code.Procedure,
+    ip: int,
+    sp: int,
+    bp: int,
+}
 
 Virtual_Machine :: struct {
-    chunk: code.Chunk,
-    stack: [STACK_MAX]object.Value,
+    frames: [FRAME_MAX]^Call_Frame,
+    frame_count: int,
+
+    stack: []object.Value,
     globals: [dynamic]object.Global,
+    procs: []^code.Procedure,
     //locals: [dynamic]object.Local,
     local_count: int,
 
-    ip: int,
-    sp: int,
+    //ip: int,
+    //sp: int,
 }
 
-vm_init :: proc(vm: ^Virtual_Machine, chunk: code.Chunk) {
-    vm.chunk = chunk
-    vm.ip = 0
-    vm.sp = 0
+vm_init :: proc(vm: ^Virtual_Machine, main_proc: ^code.Procedure, procs: []^code.Procedure) {
+    frame := new(Call_Frame)
+    vm.frames[vm.frame_count] = frame
+    vm.frame_count += 1
+    frame.procedure = main_proc
+    frame.bp = 0
+    frame.sp = 0
+    frame.ip = 0
     vm.local_count = 0
+    vm.stack = make([]object.Value, STACK_MAX)
+    vm.procs = procs
 }
 
 vm_destroy :: proc(vm: ^Virtual_Machine) {
     delete(vm.globals)
+    delete(vm.stack)
+    for frame in vm.frames {
+        free(frame)
+    }
 }
 
 stack_pop :: proc(vm: ^Virtual_Machine) -> object.Value {
-    val := vm.stack[vm.sp-1]
-    vm.sp -= 1
+    frame := vm.frames[vm.frame_count-1]
+    val := vm.stack[frame.sp-1]
+    frame.sp -= 1
     return val
 }
 
 stack_push :: proc(vm: ^Virtual_Machine, val: object.Value) {
-    vm.stack[vm.sp] = val
-    vm.sp += 1
+    frame := vm.frames[vm.frame_count-1]
+    vm.stack[frame.sp] = val
+    frame.sp += 1
 }
 
 run :: proc(vm: ^Virtual_Machine) {
     for {
-        op_bc := vm.chunk.code[vm.ip]
+        frame := vm.frames[vm.frame_count-1]
+        op_bc := frame.procedure.chunk.code[frame.ip]
         switch op_bc {
         case byte(Op_Code.PUSH):
-            stack_push(vm, vm.chunk.constants[read_u16(vm)])
+            stack_push(vm, frame.procedure.chunk.constants[read_u16(vm)])
         case byte(Op_Code.POP):
             stack_pop(vm)
         case byte(Op_Code.ADD), byte(Op_Code.SUB), byte(Op_Code.MULT), byte(Op_Code.DIV), byte(Op_Code.MOD), byte(Op_Code.MODF),
@@ -60,7 +85,7 @@ run :: proc(vm: ^Virtual_Machine) {
             exec_unary_op(vm, op_bc)
         case byte(Op_Code.JMP):
             loc := read_u16(vm)
-            vm.ip = int(loc)
+            frame.ip = int(loc)
         case byte(Op_Code.JF):
             exec_jump_false(vm)
         case byte(Op_Code.SETG):
@@ -74,7 +99,7 @@ run :: proc(vm: ^Virtual_Machine) {
         case byte(Op_Code.RET):
             return
         }
-        vm.ip += 1
+        frame.ip += 1
     }
 }
 
@@ -99,11 +124,12 @@ get_global :: proc(vm: ^Virtual_Machine) {
 }
 
 set_local :: proc(vm: ^Virtual_Machine) {
+    frame := vm.frames[vm.frame_count-1]
     stack_offset := read_u16(vm)
-    if stack_offset == u16(vm.sp - 1) {
+    if stack_offset == u16(frame.sp - 1) {
         vm.local_count += 1
 
-    } else if stack_offset < u16(vm.sp - 1) {
+    } else if stack_offset < u16(frame.sp - 1) {
         val := stack_pop(vm)
         vm.stack[stack_offset] = val
     }
@@ -116,10 +142,11 @@ get_local :: proc(vm: ^Virtual_Machine) {
 }
 
 read_u16 :: proc(vm: ^Virtual_Machine) -> u16 {
-    hi := vm.chunk.code[vm.ip+1]
-    lo := vm.chunk.code[vm.ip+2]
+    frame := vm.frames[vm.frame_count-1]
+    hi := frame.procedure.chunk.code[frame.ip+1]
+    lo := frame.procedure.chunk.code[frame.ip+2]
     idx : u16 = (u16(hi) << 8) | u16(lo)
-    vm.ip += 2
+    frame.ip += 2
     return idx
 }
 
@@ -357,6 +384,7 @@ exec_jump_false :: proc(vm: ^Virtual_Machine) {
     cond := stack_pop(vm)
     loc := read_u16(vm)
     if !cond.value.(bool) {
-        vm.ip = int(loc)
+        frame := vm.frames[vm.frame_count-1]
+        frame.ip = int(loc)
     }
 }

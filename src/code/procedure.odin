@@ -1,5 +1,7 @@
 package code
 
+import "kobold:object"
+
 Proc_Type :: enum {
     Script,
     Proc,
@@ -9,6 +11,7 @@ Procedure :: struct {
     name: string,       // For debug/error info
     arity: byte,
     type: Proc_Type,
+    return_type: object.Value_Kind,
     chunk: Chunk,
 }
 
