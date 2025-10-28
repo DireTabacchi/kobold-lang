@@ -25,11 +25,11 @@ SwitchStatement -> "switch" IdentifierSelector "{" SwitchBlock "}" ;
 
 ReturnStatement -> "return" Expr? ";" ;
 
-ControlFlowStatement -> "break" ";";
+ControlFlowStatement -> ("break" | "continue") ";";
 
 Declarator -> ( "var" | "const" ) IDENTIFIER ":" TypeSpecifier? DeclaratorExpr? ";" ;
 
-TypeDecl -> "type" IDENTIFIER ":" ( EnumDecl | RecordDecl | TypeSpecifier ) ";" ;
+TypeDecl -> "type" IDENTIFIER ":" ( EnumDecl | RecordDecl | RangeDecl | TypeSpecifier ) ";" ;
 
 ProcDecl -> "proc" IDENTIFIER "(" IdentifierDeclaratorList? ")" ProcReturnDecl? "{" Block "}" ;
 
@@ -64,6 +64,8 @@ MapList -> Expr "=>" Expr ","?
 EnumDecl -> "enum" "{" EnumeratorList? "}" ;
 
 RecordDecl -> "record" "{" IdentifierDeclaratorList? "}" ;
+
+RangeDecl -> "range" "{" RangeExpr "}" ;
 
 EnumeratorList -> IDENTIFIER ","?
                |  IDENTIFIER "," EnumeratorList ;

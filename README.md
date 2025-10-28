@@ -225,3 +225,97 @@ for {
 ```
 
 The `break` statement can be used in any loop to exit early.
+
+## Procedures
+
+**Procedures** in Kobold act like functions in other languages. A procedure declaration starts with the keyword
+`proc`, followed by the name of the procedure, followed by a parameter list enclosed in parentheses, followed by an
+arrow operator (`->`) and a return type, and finished with a code block.
+
+```
+proc add(a: int, b: int) -> int {
+    var res := a + b;
+    return res;
+}
+
+// alternatively
+proc add(a: int, b: int) -> int {
+    return a + b;
+}
+
+proc double(a: int) -> int {
+    return add(a, a);
+}
+
+var foo := double(3);   // foo == 6
+```
+
+The `return` keyword will return the value or expression that follows. `return` can also be used to exit early in a
+procedure that doesn't return a value.
+
+```
+proc foo(a: float) {
+    // Do some calculations...
+
+    if a > 10.0 {
+        return;
+    }
+
+    // Rest of procedure...
+}
+```
+
+Procedure arguments are *pass-by-value*. In the following code snippet, `bar` will still hold the value `42` after it
+has been passed to the procedure `foo`.
+
+```
+proc foo(a: int) {
+    a = a + 1;
+}
+
+var bar := 42;
+foo(bar);
+```
+
+
+# Roadmap
+
+The following is a list of items that are planned for the language before hitting version `0.1.0`.
+
+- [X] Constant Declarations
+- [X] Variable Declarations
+- [ ] Assignment Statements
+    - [X] Basic Assignment (`a = expr;`)
+    - [ ] Assignment Operation Operators (`+=`, `*=`, `-=`,etc.)
+- [ ] Operators
+    - [X] Arithmetic Operators
+    - [X] Logical Operators
+    - [ ] Range Operators
+- [X] If Statements
+    - [X] Branching (`else if`, `else`)
+- [ ] Switch Statements
+- [ ] Loops
+    - [X] Traditional For Loop
+    - [X] Traditional While Loop
+    - [X] "Infinite" Loop
+    - [ ] Iterative Loops (`for ... in ...`)
+    - [ ] Control Flow Statements
+        - [X] `break`
+        - [ ] `continue`
+- [ ] Procedures
+    - [X] Procedure Declarations
+    - [X] Procedure Calls
+    - [ ] Pass-by-reference
+    - [ ] Multiple Returns
+    - [ ] Recursion Support
+- [ ] Collections
+    - [ ] `array`
+    - [ ] `map`
+    - [ ] `set`
+    - [ ] `vector`
+    - [ ] `matrix`
+    - [ ] Collection Accessing
+- [ ] User-defined Types
+    - [ ] `enum`
+    - [ ] `record`
+    - [ ] `range`
