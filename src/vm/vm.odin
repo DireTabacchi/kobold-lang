@@ -1,9 +1,10 @@
 package vm
 
-// TODO: Refactor VM for new execution interface with procedures
 // TODO: VM frames and stack should probably be arena'd
+// TODO: Don't change value mutability when assigning variables
 
 import "core:fmt"
+import "core:mem"
 
 import "kobold:code"
 import "kobold:object"
@@ -50,8 +51,9 @@ vm_init :: proc(vm: ^Virtual_Machine, main_proc: ^code.Procedure, procs: []^code
 vm_destroy :: proc(vm: ^Virtual_Machine) {
     delete(vm.globals)
     delete(vm.stack)
-    for frame in vm.frames {
-        free(frame)
+
+    for f := 0; f < vm.frame_count; f += 1 {
+        free(vm.frames[f])
     }
 }
 
@@ -88,6 +90,8 @@ run :: proc(vm: ^Virtual_Machine) {
             frame.ip = int(loc)
         case byte(Op_Code.JF):
             exec_jump_false(vm)
+        case byte(Op_Code.CALL):
+            exec_call(vm)
         case byte(Op_Code.SETG):
             set_global(vm)
         case byte(Op_Code.GETG):
@@ -97,10 +101,44 @@ run :: proc(vm: ^Virtual_Machine) {
         case byte(Op_Code.GETL):
             get_local(vm)
         case byte(Op_Code.RET):
-            return
+            if frame.procedure.type == code.Proc_Type.Proc {
+                exec_return(vm)
+            } else {
+                return
+            }
         }
         frame.ip += 1
     }
+}
+
+exec_call :: proc(vm: ^Virtual_Machine) {
+    idx := read_u16(vm)
+    callee := vm.procs[idx]
+    old_frame := vm.frames[vm.frame_count-1]
+    new_frame, _ := mem.new(Call_Frame)
+    new_frame.procedure = callee
+    new_frame.ip = 0
+    new_frame.bp = old_frame.sp - int(callee.arity)
+    new_frame.sp = old_frame.sp
+    vm.frames[vm.frame_count] = new_frame
+    vm.frame_count += 1
+}
+
+exec_return :: proc(vm: ^Virtual_Machine) {
+    frame := vm.frames[vm.frame_count-1]
+    ret_val: object.Value
+    if frame.procedure.return_type != object.Value_Kind.Nil {
+        ret_val = stack_pop(vm)
+        vm.frame_count -= 1
+        caller_frame := vm.frames[vm.frame_count-1]
+        caller_frame.sp = frame.bp
+        stack_push(vm, ret_val)
+    } else {
+        vm.frame_count -= 1
+        caller_frame := vm.frames[vm.frame_count-1]
+        caller_frame.sp = frame.bp
+    }
+    free(frame)
 }
 
 set_global :: proc(vm: ^Virtual_Machine) {

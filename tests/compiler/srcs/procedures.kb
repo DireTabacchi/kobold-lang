@@ -10,28 +10,30 @@
 //
 //foo();
 
-//proc add(a: int, b: int) -> int {
-//    var res := a + b;
-//    return res;
-//}
-//
-//var a_num := add(1, 2);
-////a_num;
-//
-//
-//proc double(a: int) -> int {
-//    return add(a, a);
-//}
-
-var b_num := 6;
-//b_num;
-
-proc add_1(a: int) {
-    a = a + 1;
+proc add(a: int, b: int) -> int {
+    var res := a + b;
+    return res;
 }
 
-add_1(b_num);
+var a_num := add(1, 2);
+//a_num;
+
+
+proc double(a: int) -> int {
+    return add(a, a);
+}
+
+var b_num := double(a_num);
 b_num;
+//var b_num := 6;
+
+// TODO: add keyword for reference passing?
+//proc add_1(a: int) {
+//    a = a + 1;
+//}
+//
+//add_1(b_num);
+//b_num;
 
 // TODO: Create way to handle recursive procedures; `rec` keyword?
 //rec proc fib(n: int) -> int {

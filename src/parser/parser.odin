@@ -398,7 +398,7 @@ parse_const_decl :: proc(p: ^Parser) -> ^ast.Statement {
         return cd
     }
 
-    expr_type := expression_type(p^, val)
+    expr_type := expression_type(p, val)
     type_type, _ := type.derived_type.(^ast.Builtin_Type)
     if val_type := expr_type.derived_type.(^ast.Builtin_Type); val_type.type != type_type.type {
         errorf_msg(p, start_pos, "cannot assign value of type `%s` to variable of type `%s`", val_type.type, type_type.type)
@@ -435,29 +435,33 @@ parse_var_decl :: proc(p: ^Parser) -> ^ast.Statement {
 
     _, invalid_val := val.derived_expression.(^ast.Invalid_Expression)
 
+    expr_type := expression_type(p, val)
     if type == nil && !invalid_val {
-        type = expression_type(p^, val)
-        if _, invalid := type.derived_type.(^ast.Invalid_Type); invalid {
+        if _, invalid := expr_type.derived_type.(^ast.Invalid_Type); invalid {
             errorf_msg(p, start_pos, "cannot deduce type of var `%s`", vd.name)
         }
-        vd.type = type
+        vd.type = expr_type
+        vd.value = val
     } else if type == nil && invalid_val {
         errorf_msg(p, start_pos, "cannot deduce type of var `%s`", vd.name)
-    }
-
-    if type != nil && invalid_val {
+        vd.type = ast.new(ast.Invalid_Type, start_pos, end_pos(p.prev_tok))
+        vd.value = val
+        free(expr_type)
+    } else if type != nil && invalid_val {
         vd.type = type
         vd.value = nil
         free(val)
-    } else {
-        expr_type := expression_type(p^, val)
-        type_type, _ := type.derived_type.(^ast.Builtin_Type)
-        if val_type := expr_type.derived_type.(^ast.Builtin_Type); val_type.type != type_type.type {
-            errorf_msg(p, start_pos, "cannot assign value of type `%s` to variable of type `%s`", val_type.type, type_type.type)
-        }
         free(expr_type)
-        vd.type = type
+    } else if type != nil && !invalid_val {
+        type_type, valid := type.derived_type.(^ast.Builtin_Type)
+        if val_type := expr_type.derived_type.(^ast.Builtin_Type); valid && val_type.type != type_type.type {
+            errorf_msg(p, start_pos, "cannot assign value of type `%s` to variable of type `%s`", val_type.type, type_type.type)
+            vd.type = ast.new(ast.Invalid_Type, start_pos, end_pos(p.prev_tok))
+        } else {
+            vd.type = type
+        }
         vd.value = val
+        free(expr_type)
     }
 
     if _, exists := symbol.symbol_exists(vd.name, p.sym_table^); exists {
@@ -466,7 +470,7 @@ parse_var_decl :: proc(p: ^Parser) -> ^ast.Statement {
     }
 
     var_type: tokenizer.Token_Kind
-    #partial switch t in type.derived_type {
+    #partial switch t in vd.type.derived_type {
     case ^ast.Builtin_Type:
         var_type = t.type
     }
@@ -477,7 +481,7 @@ parse_var_decl :: proc(p: ^Parser) -> ^ast.Statement {
     return vd
 }
 
-expression_type :: proc(p: Parser, expr: ^ast.Expression) -> ^ast.Type_Specifier {
+expression_type :: proc(p: ^Parser, expr: ^ast.Expression) -> ^ast.Type_Specifier {
     #partial switch e in expr.derived_expression {
     case ^ast.Binary_Expression:
         #partial switch e.op.type {
@@ -539,8 +543,14 @@ expression_type :: proc(p: Parser, expr: ^ast.Expression) -> ^ast.Type_Specifier
             it := ast.new(ast.Invalid_Type, expr.start, expr.end)
             return it
         }
-        ts := ast.new(ast.Builtin_Type, expr.start, expr.end)
         proc_info := p.proc_table[sym.id]
+        if proc_info.return_type == nil {
+            errorf_msg(p, expr.start, "procedure `%s` has no return type", proc_info.name)
+            it := ast.new(ast.Invalid_Type, expr.start, expr.end)
+            return it
+        }
+
+        ts := ast.new(ast.Builtin_Type, expr.start, expr.end)
         if bt, valid := proc_info.return_type.derived_type.(^ast.Builtin_Type); valid {
             ts.type = bt.type
         } else {
@@ -582,7 +592,6 @@ parse_expr_statement :: proc(p: ^Parser) -> ^ast.Statement {
 }
 
 parse_expression :: proc(p: ^Parser) -> ^ast.Expression {
-    //start_pos := p.curr_tok.pos
     bin_expr := parse_binary_expr(p, 0)
 
     if bin_expr == nil {
@@ -648,8 +657,6 @@ parse_unary_expr :: proc(p: ^Parser) -> ^ast.Expression {
 }
 
 parse_primary :: proc(p: ^Parser) -> ^ast.Expression {
-    //start_pos := p.curr_tok.pos
-
     #partial switch p.curr_tok.type {
     case .L_Paren:
         advance_token(p)

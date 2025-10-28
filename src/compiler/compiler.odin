@@ -206,6 +206,27 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^code.Procedure, stmt: ast
         new_proc := code.new_proc(st.name, byte(len(st.params)), code.Proc_Type.Proc)
         if st.return_type == nil {
             new_proc.return_type = object.Value_Kind.Nil
+        } else {
+            return_type, ok := st.return_type.derived_type.(^ast.Builtin_Type)
+            if !ok {
+                fmt.eprintfln("[%d:%d] unknown return type", st.start.line, st.start.col)
+                return
+            } else {
+                #partial switch return_type.type {
+                case .Type_Integer:
+                    new_proc.return_type = object.Value_Kind.Integer
+                case .Type_Unsigned_Integer:
+                    new_proc.return_type = object.Value_Kind.Unsigned_Integer
+                case .Type_Float:
+                    new_proc.return_type = object.Value_Kind.Float
+                case .Type_Boolean:
+                    new_proc.return_type = object.Value_Kind.Boolean
+                case .Type_Rune:
+                    new_proc.return_type = object.Value_Kind.Rune
+                case .Type_String:
+                    new_proc.return_type = object.Value_Kind.String
+                }
+            }
         }
         begin_scope(comp)
         append(&comp.proc_scopes, comp.curr_scope)
