@@ -10,27 +10,43 @@
 //
 //foo();
 
-proc add(a: int, b: int) -> int {
-    var res := a + b;
-    return res;
+//proc add(a: int, b: int) -> int {
+//    var res := a + b;
+//    return res;
+//}
+//
+//var a_num := add(1, 2);
+////a_num;
+//
+//
+//proc double(a: int) -> int {
+//    return add(a, a);
+//}
+
+var b_num := 6;
+//b_num;
+
+proc add_1(a: int) {
+    a = a + 1;
 }
 
-var a_num := add(1, 2);
+add_1(b_num);
+b_num;
 
-//proc bar(a: int, b: float) {
-//
+// TODO: Create way to handle recursive procedures; `rec` keyword?
+//rec proc fib(n: int) -> int {
+//    if n <= 1 {
+//        return 1;
+//    }
+//    return rec_fib(n - 1_ + rec_fib(n - 2);
 //}
+//proc rec_fib(n: int) -> int {
+//    if n <= 1 {
+//        return 1;
+//    }
 //
-//proc baz() -> int {
-//    return 1;
+//    return rec_fib(n - 1) + rec_fib(n - 2);
 //}
-//
-//proc f() {
-//    foo();
-//}
-//
-//proc f2() {
-//    f();
-//}
-//
-//f2();
+
+//var fib_twenty := rec_fib(20);
+//fib_twenty;
