@@ -98,7 +98,7 @@ ProcCall -> IDENTIFIER "(" ArgumentList? ")" | Primary ;
 
 ArgumentList -> ExprList ;
 
-Primary -> INTEGER | FLOAT | STRING | RUNE | BOOLEAN | IdentifierSelector | "(" Expr ")" ;
+Primary -> INTEGER | FLOAT | STRING | RUNE | BOOLEAN | IdentifierSelector | "(" Expr ")" | CollectionAccess ;
 
 IdentifierList -> IdentifierSelector ","?
                |  IdentifierSelector "," IdentifierList ;
@@ -106,6 +106,8 @@ IdentifierList -> IdentifierSelector ","?
 FieldSelector -> "." IdentifierSelector ;
 
 IdentfierSelector -> IDENTIFIER FieldSelector? ;
+
+CollectionAccess -> IdentifierSelector "[" Primary "]" ;
 
 TypeSpecifier -> TypeName | CollectionType ;
 
