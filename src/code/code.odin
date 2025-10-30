@@ -11,6 +11,7 @@ Op_Code :: enum byte {
     MULT,   // Multiply the two values on the top of the stack. [SP-1] * [SP]
     DIV,    // Divide the two values on the top of the stack. [SP-1] / [SP]
     MOD,    // Perform modulo with truncated division of the two values on the top of the stack. [SP-1] % [SP]
+    MODF,   // Perform modulo with floored division of the two values on the top of the stack. [SP-1] %% [SP]
     EQ,     // Compare the two values on the top of the stack. [SP-1] == [SP]
     NEQ,    // Compare the two values on the top of the stack. [SP-1] != [SP]
     LSSR,   // Compare the two values on the top of the stack. [SP-1] < [SP]
@@ -19,7 +20,6 @@ Op_Code :: enum byte {
     GEQ,    // Compare the two values on the top of the stack. [SP-1] >= [SP]
     LAND,   // Compare the two values on the top of the stack for true. [SP-1]==TRUE && [SP]==TRUE
     LOR,    // Compare the two values on the top of the stack for true. [SP-1]==TRUE || [SP]==TRUE
-    MODF,   // Perform modulo with floored division of the two values on the top of the stack. [SP-1] %% [SP]
     NEG,    // Negate the value at the top of the stack.
     NOT,    // Invert the Boolean value at the top of the stack.
     JMP,    // Unconditional JUMP instruction. Jump to bytecode instruction specified as operand.

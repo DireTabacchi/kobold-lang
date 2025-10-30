@@ -35,6 +35,10 @@ Type_Specifier :: struct {
     derived_type: Any_Type,
 }
 
+Invalid_Statement :: struct {
+    using node: Statement,
+}
+
 Declarator :: struct {
     using node: Statement,
     name: string,
@@ -66,6 +70,13 @@ Return_Statement :: struct {
 Assignment_Statement :: struct {
     using node: Statement,
     name: string,
+    value: ^Expression,
+}
+
+Assignment_Operation_Statement :: struct {
+    using node: Statement,
+    name: string,
+    op: tokenizer.Token_Kind,
     value: ^Expression,
 }
 
@@ -154,11 +165,13 @@ Invalid_Type :: struct {
 }
 
 Any_Statement :: union {
+    ^Invalid_Statement,
     ^Declarator,
     ^Procedure_Declarator,
     ^Parameter_Declarator,
     ^Expression_Statement,
     ^Assignment_Statement,
+    ^Assignment_Operation_Statement,
     ^If_Statement,
     ^Else_If_Statement,
     ^Else_Statement,
@@ -238,6 +251,9 @@ statement_destroy :: proc(stmt: Any_Statement) {
         type_specifier_destroy(s.type.derived_type)
         free(s)
     case ^Assignment_Statement:
+        expression_destroy(s.value.derived_expression)
+        free(s)
+    case ^Assignment_Operation_Statement:
         expression_destroy(s.value.derived_expression)
         free(s)
     case ^Expression_Statement:

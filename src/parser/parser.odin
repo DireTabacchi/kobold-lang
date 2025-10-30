@@ -63,7 +63,7 @@ parse :: proc(p: ^Parser) {
         if stmt != nil {
             append(&p.prog.stmts, stmt)
         } else {
-            error(p, p.curr_tok.pos, "error parsing statement")
+            //error(p, p.curr_tok.pos, "error parsing statement")
             return
         }
     }
@@ -88,23 +88,36 @@ parse_statement :: proc(p: ^Parser) -> ^ast.Statement {
     case .Return:
         return parse_return_statement(p)
     case:
+        start_pos := p.curr_tok.pos
         start_idx := p.curr_idx
-        for p.curr_tok.type != .Assign && p.curr_tok.type != .Semicolon {
-            advance_token(p)
-        }
-        if p.curr_tok.type == .Assign {
-            reset_to_token(p, start_idx)
-            assign_stmt := parse_assign_statement(p, true)
-            return assign_stmt
-        } else if p.curr_tok.type == .Semicolon {
-            reset_to_token(p, start_idx)
-            expr_stmt := parse_expr_statement(p)
-            if expr_stmt == nil {
-                error(p, p.curr_tok.pos, "error parsing expression statement")
+        for {
+            #partial switch p.curr_tok.type {
+            case .Assign..=.Assign_Mod_Floor:
+                reset_to_token(p, start_idx)
+                return parse_assign_statement(p, true)
+            case .Semicolon:
+                reset_to_token(p, start_idx)
+                fmt.println("found an expr statement")
+                return parse_expr_statement(p)
+            case .EOF:
+                error(p, start_pos, "Unterminated statement")
                 return nil
             }
-            return expr_stmt
+            advance_token(p)
         }
+        //if p.curr_tok.type == .Assign {
+        //    reset_to_token(p, start_idx)
+        //    assign_stmt := parse_assign_statement(p, true)
+        //    return assign_stmt
+        //} else if p.curr_tok.type == .Semicolon {
+        //    reset_to_token(p, start_idx)
+        //    expr_stmt := parse_expr_statement(p)
+        //    if expr_stmt == nil {
+        //        error(p, p.curr_tok.pos, "error parsing expression statement")
+        //        return nil
+        //    }
+        //    return expr_stmt
+        //}
     }
     return nil
 }
@@ -319,33 +332,35 @@ parse_block :: proc(p: ^Parser, do_scoping: bool) -> []^ast.Statement {
     return block[:]
 }
 
-increment_scope :: proc(p: ^Parser) {
-    p.curr_scope += 1
-    p.sym_table = symbol.new(p.sym_table)
-}
-
-decrement_scope :: proc(p: ^Parser) {
-    p.curr_scope -= 1
-    old_table := p.sym_table
-    p.sym_table = p.sym_table.outer
-    symbol.destroy(old_table)
-}
-
 parse_assign_statement :: proc(p: ^Parser, expect_semicolon: bool) -> ^ast.Statement {
     start_pos := p.curr_tok.pos
     ident := parse_identifier(p)
-    expect_token(p, .Assign)
+    assign_tok := advance_token(p)
     expr := parse_expression(p)
     if expect_semicolon {
         expect_token(p, .Semicolon)
     }
-    as := ast.new(ast.Assignment_Statement, start_pos, end_pos(p.prev_tok))
-    if id, valid := ident.derived_expression.(^ast.Identifier); valid {
-        as.name = id.name
-        as.value = expr
+    #partial switch assign_tok.type {
+    case .Assign:
+        as := ast.new(ast.Assignment_Statement, start_pos, end_pos(p.prev_tok))
+        if id, valid := ident.derived_expression.(^ast.Identifier); valid {
+            as.name = id.name
+            as.value = expr
+        }
+        free(ident)
+        return as
+    case .Assign_Add..=.Assign_Mod_Floor:
+        aos := ast.new(ast.Assignment_Operation_Statement, start_pos, end_pos(p.prev_tok))
+        if id, valid := ident.derived_expression.(^ast.Identifier); valid {
+            aos.name = id.name
+            aos.op = assign_tok.type
+            aos.value = expr
+        }
+        free(ident)
+        return aos
     }
-    free(ident)
-    return as
+    is := ast.new(ast.Invalid_Statement, start_pos, end_pos(p.prev_tok))
+    return is
 }
 
 parse_decl_statement :: proc(p: ^Parser) -> ^ast.Statement {
@@ -837,6 +852,18 @@ precedence :: proc(token: tokenizer.Token) -> int {
     case:
         return 0
     }
+}
+
+increment_scope :: proc(p: ^Parser) {
+    p.curr_scope += 1
+    p.sym_table = symbol.new(p.sym_table)
+}
+
+decrement_scope :: proc(p: ^Parser) {
+    p.curr_scope -= 1
+    old_table := p.sym_table
+    p.sym_table = p.sym_table.outer
+    symbol.destroy(old_table)
 }
 
 error_msg :: proc(p: ^Parser, pos: tokenizer.Pos, msg: string) {

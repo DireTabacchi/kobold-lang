@@ -4,6 +4,8 @@ import "base:intrinsics"
 import "core:fmt"
 import "core:strings"
 
+import "kobold:tokenizer"
+
 AST_Printer :: struct {
     builder: strings.Builder,
     indent_lvl: int,
@@ -114,6 +116,18 @@ print_stmt :: proc(ap: ^AST_Printer, stmt: Any_Statement) {
         defer ap.indent_lvl -= 1
         write_tabs(ap)
         fmt.sbprintfln(&ap.builder, "\u251Cname: %s", st.name)
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514value:\n")
+        print_expr(ap, st.value.derived_expression)
+    case ^Assignment_Operation_Statement:
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514Assignment Operation Statement:\n")
+        ap.indent_lvl += 1
+        defer ap.indent_lvl -= 1
+        write_tabs(ap)
+        fmt.sbprintfln(&ap.builder, "\u251Cname: %s", st.name)
+        write_tabs(ap)
+        fmt.sbprintfln(&ap.builder, "\u251Cop: %s", tokenizer.token_list[st.op])
         write_tabs(ap)
         strings.write_string(&ap.builder, "\u2514value:\n")
         print_expr(ap, st.value.derived_expression)

@@ -99,6 +99,36 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^code.Procedure, stmt: ast
             emit_byte(&curr_proc.chunk, byte(Op_Code.SETL))
         }
         emit_bytes(&curr_proc.chunk, u16(idx))
+    case ^ast.Assignment_Operation_Statement:
+        _, scope, idx := resolve_variable(comp, st.name)
+        set_op, get_op: Op_Code
+        if scope == 0 {
+            set_op = .SETG
+            get_op = .GETG
+        } else {
+            set_op = .SETL
+            get_op = .GETL
+        }
+        emit_byte(&curr_proc.chunk, byte(get_op))
+        emit_bytes(&curr_proc.chunk, u16(idx))
+        compile_expression(comp, curr_proc, st.value.derived_expression)
+        #partial switch st.op {
+        case .Assign_Add:
+            emit_byte(&curr_proc.chunk, byte(Op_Code.ADD))
+        case .Assign_Minus:
+            emit_byte(&curr_proc.chunk, byte(Op_Code.SUB))
+        case .Assign_Mult:
+            emit_byte(&curr_proc.chunk, byte(Op_Code.MULT))
+        case .Assign_Div:
+            emit_byte(&curr_proc.chunk, byte(Op_Code.DIV))
+        case .Assign_Mod:
+            emit_byte(&curr_proc.chunk, byte(Op_Code.MOD))
+        case .Assign_Mod_Floor:
+            emit_byte(&curr_proc.chunk, byte(Op_Code.MODF))
+        }
+        emit_byte(&curr_proc.chunk, byte(set_op))
+        emit_bytes(&curr_proc.chunk, u16(idx))
+
     case ^ast.Expression_Statement:
         compile_expression(comp, curr_proc, st.expr.derived_expression)
     case ^ast.If_Statement:

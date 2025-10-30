@@ -89,8 +89,8 @@ main :: proc() {
     //fmt.println("Constants:")
     //fmt.println(comp.chunk.constants)
 
-    fmt.println("Globals:")
-    fmt.println(comp.globals)
+    //fmt.println("Compiler Globals:")
+    //fmt.println(comp.globals)
 
     virtual_machine: vm.Virtual_Machine
     vm.vm_init(&virtual_machine, comp.main_proc, comp.procs[:])
