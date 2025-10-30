@@ -59,6 +59,7 @@ builtin_procs := map[string]Builtin_Proc{
 
 builtin_print :: proc(args: ..object.Value) -> object.Value {
     for arg in args {
+        // TODO: Find better way to handle escapes
         #partial switch arg.type {
         case .String:
             if arg.value == `\n` {
@@ -69,14 +70,23 @@ builtin_print :: proc(args: ..object.Value) -> object.Value {
         case:
             fmt.print(arg.value)
         }
-        //fmt.print(arg.value)
     }
     return object.Value{ object.Value_Kind.Nil, i64(0), false }
 }
 
 builtin_println :: proc(args: ..object.Value) -> object.Value {
     for arg in args {
-        fmt.print(arg.value)
+        // TODO: See builtin_print
+        #partial switch arg.type {
+        case .String:
+            if arg.value == `\n` {
+                fmt.print("\n")
+            } else {
+                fmt.print(arg.value)
+            }
+        case:
+            fmt.print(arg.value)
+        }
     }
     fmt.print("\n")
 
