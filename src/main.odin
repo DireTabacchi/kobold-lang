@@ -12,7 +12,7 @@ import "kobold:ast"
 import "kobold:compiler"
 import "kobold:vm"
 
-KOBOLD_VERSION :: "0.0.42"
+KOBOLD_VERSION :: "0.0.43"
 
 main :: proc() {
     when ODIN_DEBUG {   // From Odin Overview
@@ -97,7 +97,7 @@ main :: proc() {
 
     vm.run(&virtual_machine)
     fmt.println("=== VM Finished ===")
-    fmt.printfln("Stack top: %v", virtual_machine.stack[virtual_machine.frames[virtual_machine.frame_count-1].sp-1].value)
+    //fmt.printfln("Stack top: %v", virtual_machine.stack[virtual_machine.frames[virtual_machine.frame_count-1].sp-1].value)
     fmt.printfln("Globals:\n%v", virtual_machine.globals)
     fmt.printfln("stack:\n%v", virtual_machine.stack[:virtual_machine.frames[virtual_machine.frame_count-1].sp])
     vm.vm_destroy(&virtual_machine)

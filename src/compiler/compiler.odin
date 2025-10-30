@@ -8,17 +8,19 @@ import "core:unicode/utf8"
 import "kobold:ast"
 import "kobold:code"
 import "kobold:object"
+import proc_lib "kobold:object/procedure"
 import "kobold:symbol"
 import "kobold:tokenizer"
 
 Op_Code :: code.Op_Code
 
 Compiler :: struct {
-    main_proc: ^code.Procedure,
+    main_proc: ^proc_lib.Procedure,
 
     globals: [dynamic]object.Global,
     locals: [dynamic]object.Local,
-    procs: [dynamic]^code.Procedure,
+    procs: [dynamic]^proc_lib.Procedure,
+    builtin_procs: [dynamic]^proc_lib.Builtin_Proc,
 
     curr_scope: int,
     loop_scopes: [dynamic]int,
@@ -37,7 +39,9 @@ Break_Stat :: struct {
 
 compiler_init :: proc(comp: ^Compiler) {
     comp.sym_table = symbol.new()
-    comp.main_proc = code.new_proc(.Script)
+    comp.main_proc = proc_lib.new_proc(.Script)
+
+    append(&comp.builtin_procs, &proc_lib.builtin_procs["println"])
 }
 
 compiler_destroy :: proc(comp: ^Compiler) {
@@ -48,6 +52,7 @@ compiler_destroy :: proc(comp: ^Compiler) {
     code.chunk_destroy(&comp.main_proc.chunk)
     free(comp.main_proc)
     delete(comp.procs)
+    delete(comp.builtin_procs)
     delete(comp.globals)
     delete(comp.locals)
     delete(comp.loop_scopes)
@@ -64,7 +69,7 @@ compile :: proc(comp: ^Compiler, prog: ^ast.Program) {
     fmt.println("=== Finished Compilation ===")
 }
 
-compile_statement :: proc(comp: ^Compiler, curr_proc: ^code.Procedure, stmt: ast.Any_Statement) {
+compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt: ast.Any_Statement) {
     #partial switch st in stmt {
     case ^ast.Declarator:
         if comp.curr_scope == 0 {
@@ -233,7 +238,7 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^code.Procedure, stmt: ast
         append(&comp.break_stats, break_stat)
 
     case ^ast.Procedure_Declarator:
-        new_proc := code.new_proc(st.name, byte(len(st.params)), code.Proc_Type.Proc)
+        new_proc := proc_lib.new_proc(st.name, byte(len(st.params)), proc_lib.Proc_Type.Proc)
         if st.return_type == nil {
             new_proc.return_type = object.Value_Kind.Nil
         } else {
@@ -370,7 +375,7 @@ resolve_variable :: proc(c: ^Compiler, name: string) -> (val: object.Value, scop
     return
 }
 
-compile_expression :: proc(comp: ^Compiler, curr_proc: ^code.Procedure, expr: ast.Any_Expression) {
+compile_expression :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, expr: ast.Any_Expression) {
     #partial switch e in expr {
     case ^ast.Binary_Expression:
         compile_expression(comp, curr_proc, e.left.derived_expression)
@@ -451,8 +456,27 @@ compile_expression :: proc(comp: ^Compiler, curr_proc: ^code.Procedure, expr: as
     case ^ast.Proc_Call:
         sym, exists := resolve_symbol(comp, e.name)
         if !exists {
-            fmt.eprintfln("could not resolve symbol `%s`", e.name)
+            if e.name in proc_lib.builtin_procs {
+                #reverse for arg in e.args {
+                    compile_expression(comp, curr_proc, arg.derived_expression)
+                }
+                id: int
+                for builtin, idx in comp.builtin_procs {
+                    if builtin.name == e.name {
+                        id = idx
+                    }
+                }
+                emit_byte(&curr_proc.chunk, byte(Op_Code.CALLBI))
+                emit_bytes(&curr_proc.chunk, u16(id))
+                emit_byte(&curr_proc.chunk, byte(len(e.args)))
+                return
+            } else {
+                // TODO: should error, do not run code
+                fmt.eprintfln("could not resolve symbol `%s`", e.name)
+                return
+            }
         }
+
         for arg in e.args {
             compile_expression(comp, curr_proc, arg.derived_expression)
         }
@@ -547,7 +571,7 @@ begin_scope :: proc(comp: ^Compiler) {
     comp.sym_table = symbol.new(comp.sym_table)
 }
 
-end_scope :: proc(comp: ^Compiler, curr_proc: ^code.Procedure, is_proc_scope: bool) {
+end_scope :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, is_proc_scope: bool) {
     for i := len(comp.locals) - 1; i >= 0; i -= 1 {
         if len(comp.locals) > 0 && comp.locals[i].scope >= comp.curr_scope {
             pop(&comp.locals)

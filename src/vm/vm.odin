@@ -8,6 +8,7 @@ import "core:mem"
 
 import "kobold:code"
 import "kobold:object"
+import proc_lib "kobold:object/procedure"
 
 Op_Code :: code.Op_Code
 
@@ -15,7 +16,7 @@ FRAME_MAX :: 64
 STACK_MAX :: FRAME_MAX * 255
 
 Call_Frame :: struct {
-    procedure: ^code.Procedure,
+    procedure: ^proc_lib.Procedure,
     ip: int,
     sp: int,
     bp: int,
@@ -27,7 +28,8 @@ Virtual_Machine :: struct {
 
     stack: []object.Value,
     globals: [dynamic]object.Global,
-    procs: []^code.Procedure,
+    procs: []^proc_lib.Procedure,
+    builtin_procs: [dynamic]^proc_lib.Builtin_Proc,
     //locals: [dynamic]object.Local,
     local_count: int,
 
@@ -35,7 +37,7 @@ Virtual_Machine :: struct {
     //sp: int,
 }
 
-vm_init :: proc(vm: ^Virtual_Machine, main_proc: ^code.Procedure, procs: []^code.Procedure) {
+vm_init :: proc(vm: ^Virtual_Machine, main_proc: ^proc_lib.Procedure, procs: []^proc_lib.Procedure) {
     frame := new(Call_Frame)
     vm.frames[vm.frame_count] = frame
     vm.frame_count += 1
@@ -46,11 +48,14 @@ vm_init :: proc(vm: ^Virtual_Machine, main_proc: ^code.Procedure, procs: []^code
     vm.local_count = 0
     vm.stack = make([]object.Value, STACK_MAX)
     vm.procs = procs
+
+    append(&vm.builtin_procs, &proc_lib.builtin_procs["println"])
 }
 
 vm_destroy :: proc(vm: ^Virtual_Machine) {
     delete(vm.globals)
     delete(vm.stack)
+    delete(vm.builtin_procs)
 
     for f := 0; f < vm.frame_count; f += 1 {
         free(vm.frames[f])
@@ -92,6 +97,8 @@ run :: proc(vm: ^Virtual_Machine) {
             exec_jump_false(vm)
         case byte(Op_Code.CALL):
             exec_call(vm)
+        case byte(Op_Code.CALLBI):
+            exec_builtin_call(vm)
         case byte(Op_Code.SETG):
             set_global(vm)
         case byte(Op_Code.GETG):
@@ -101,7 +108,7 @@ run :: proc(vm: ^Virtual_Machine) {
         case byte(Op_Code.GETL):
             get_local(vm)
         case byte(Op_Code.RET):
-            if frame.procedure.type == code.Proc_Type.Proc {
+            if frame.procedure.type == proc_lib.Proc_Type.Proc {
                 exec_return(vm)
             } else {
                 return
@@ -122,6 +129,22 @@ exec_call :: proc(vm: ^Virtual_Machine) {
     new_frame.sp = old_frame.sp
     vm.frames[vm.frame_count] = new_frame
     vm.frame_count += 1
+}
+
+exec_builtin_call :: proc(vm: ^Virtual_Machine) {
+    idx := read_u16(vm)
+    arg_count := read_byte(vm)
+    callee := vm.builtin_procs[idx]
+    args := make([]object.Value, arg_count)
+    defer delete(args)
+    for i := 0; i < int(arg_count); i += 1 {
+        val := stack_pop(vm)
+        args[i] = val
+    }
+    ret_val := callee.exec(..args)
+    if callee.return_type != object.Value_Kind.Nil {
+        stack_push(vm, ret_val)
+    }
 }
 
 exec_return :: proc(vm: ^Virtual_Machine) {
@@ -185,6 +208,13 @@ read_u16 :: proc(vm: ^Virtual_Machine) -> u16 {
     idx : u16 = (u16(hi) << 8) | u16(lo)
     frame.ip += 2
     return idx
+}
+
+read_byte :: proc(vm: ^Virtual_Machine) -> byte {
+    frame := vm.frames[vm.frame_count-1]
+    b := frame.procedure.chunk.code[frame.ip+1]
+    frame.ip += 1
+    return b
 }
 
 exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {

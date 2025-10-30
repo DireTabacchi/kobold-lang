@@ -26,6 +26,8 @@ Op_Code :: enum byte {
             // Op1: 2-byte instruction location to set IP to.
     JF,     // Jump if False. Jump to bytecode instruction specified as operand if the top of stack value is false.
     CALL,   
+    CALLBI, // Call a builtin procedure.
+            // Op1: 2-byte index into builtin_procs table
     SETG,   // Set a global variable in the globals table to a value.
             // Op1: 2-byte index into globals table.
     GETG,   // Get a global variable from the globals table, and push its value on the stack.

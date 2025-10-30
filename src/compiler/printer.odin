@@ -1,7 +1,7 @@
 package compiler
 
 import "core:fmt"
-import "kobold:code"
+import procs "kobold:object/procedure"
 
 print :: proc(comp: Compiler) {
     print_procedure(comp.main_proc^)
@@ -10,7 +10,7 @@ print :: proc(comp: Compiler) {
     }
 }
 
-print_procedure :: proc(procedure: code.Procedure) {
+print_procedure :: proc(procedure: procs.Procedure) {
     if procedure.type == .Script {
         fmt.printfln("Script: (%d bytes)", len(procedure.chunk.code))
     } else if procedure.type == .Proc {
@@ -64,6 +64,13 @@ print_procedure :: proc(procedure: code.Procedure) {
             loc : u16 = (u16(hi) << 8) | u16(lo)
             fmt.printfln("%8X    %-8s %#8X", i, "CALL", loc)
             i += 2
+        case u8(Op_Code.CALLBI):
+            hi := procedure.chunk.code[i+1]
+            lo := procedure.chunk.code[i+2]
+            loc : u16 = (u16(hi) << 8) | u16(lo)
+            arg_count := procedure.chunk.code[i+3]
+            fmt.printfln("%8X    %-8s %#8X %6d", i, "CALLBI", loc, arg_count)
+            i += 3
         case u8(Op_Code.JMP):
             hi := procedure.chunk.code[i+1]
             lo := procedure.chunk.code[i+2]

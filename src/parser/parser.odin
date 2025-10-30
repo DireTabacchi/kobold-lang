@@ -727,10 +727,11 @@ parse_proc_call :: proc(p: ^Parser) -> ^ast.Expression {
     pc.name = name.text
     pc.args = arg_list
 
-    if _, exists := symbol.symbol_exists(pc.name, p.sym_table^); !exists {
-        errorf_msg(p, pc.start, "call to undefined procedure `%s`", pc.name)
-        return pc
-    }
+    // TODO: move this code to checker
+    //if _, exists := symbol.symbol_exists(pc.name, p.sym_table^); !exists {
+    //    errorf_msg(p, pc.start, "call to undefined procedure `%s`", pc.name)
+    //    return pc
+    //}
 
     return pc
 }
