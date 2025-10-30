@@ -1,0 +1,18 @@
+// Fibonacci sequence iterative algorithm.
+// Largest n is 92, 93 puts b past the signed integer limit.
+var a := 0;
+var b := 1;
+
+// Set n to 1 to 92
+var n := 10;
+
+println("Computing Fibonacci sequence for n = ", n);
+
+for var i := 1; i < n; i = i + 1 {
+    println("value is currently ", b);
+    var c := a + b;
+    a = b;
+    b = c;
+}
+
+println("Result: ", b);

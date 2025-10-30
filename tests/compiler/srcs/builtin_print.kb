@@ -1,0 +1,6 @@
+var b := 7;
+println(b);
+println(14);
+println("Hello from Kobold!");
+println(false);
+println('K');
