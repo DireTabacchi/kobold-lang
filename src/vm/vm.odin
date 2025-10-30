@@ -50,6 +50,7 @@ vm_init :: proc(vm: ^Virtual_Machine, main_proc: ^proc_lib.Procedure, procs: []^
     vm.procs = procs
 
     append(&vm.builtin_procs, &proc_lib.builtin_procs["println"])
+    append(&vm.builtin_procs, &proc_lib.builtin_procs["print"])
 }
 
 vm_destroy :: proc(vm: ^Virtual_Machine) {
@@ -133,10 +134,15 @@ exec_call :: proc(vm: ^Virtual_Machine) {
 
 exec_builtin_call :: proc(vm: ^Virtual_Machine) {
     idx := read_u16(vm)
-    arg_count := read_byte(vm)
     callee := vm.builtin_procs[idx]
+    arg_count := read_byte(vm)
+    if !callee.varargs {
+        arg_count = callee.arity
+    }
+
     args := make([]object.Value, arg_count)
     defer delete(args)
+
     for i := 0; i < int(arg_count); i += 1 {
         val := stack_pop(vm)
         args[i] = val

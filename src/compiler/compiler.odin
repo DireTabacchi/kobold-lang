@@ -42,6 +42,7 @@ compiler_init :: proc(comp: ^Compiler) {
     comp.main_proc = proc_lib.new_proc(.Script)
 
     append(&comp.builtin_procs, &proc_lib.builtin_procs["println"])
+    append(&comp.builtin_procs, &proc_lib.builtin_procs["print"])
 }
 
 compiler_destroy :: proc(comp: ^Compiler) {

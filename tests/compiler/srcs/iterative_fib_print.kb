@@ -8,11 +8,16 @@ var n := 10;
 
 println("Computing Fibonacci sequence for n = ", n);
 
-for var i := 1; i < n; i = i + 1 {
-    println("value is currently ", b);
+for var i := 1; i < n; i += 1 {
+    print(b);
     var c := a + b;
     a = b;
     b = c;
+    if i + 1 < n {
+        print(", ");
+    } else {
+        print("\n");
+    }
 }
 
 println("Result: ", b);

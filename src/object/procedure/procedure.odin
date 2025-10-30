@@ -52,6 +52,26 @@ builtin_procs := map[string]Builtin_Proc{
     "println" = Builtin_Proc{
         "println", 1, true, object.Value_Kind.Nil, builtin_println,
     },
+    "print" = Builtin_Proc{
+        "print", 1, true, object.Value_Kind.Nil, builtin_print,
+    },
+}
+
+builtin_print :: proc(args: ..object.Value) -> object.Value {
+    for arg in args {
+        #partial switch arg.type {
+        case .String:
+            if arg.value == `\n` {
+                fmt.print("\n")
+            } else {
+                fmt.print(arg.value)
+            }
+        case:
+            fmt.print(arg.value)
+        }
+        //fmt.print(arg.value)
+    }
+    return object.Value{ object.Value_Kind.Nil, i64(0), false }
 }
 
 builtin_println :: proc(args: ..object.Value) -> object.Value {

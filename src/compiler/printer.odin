@@ -69,7 +69,7 @@ print_procedure :: proc(procedure: procs.Procedure) {
             lo := procedure.chunk.code[i+2]
             loc : u16 = (u16(hi) << 8) | u16(lo)
             arg_count := procedure.chunk.code[i+3]
-            fmt.printfln("%8X    %-8s %#8X %6d", i, "CALLBI", loc, arg_count)
+            fmt.printfln("%8X    %-8s %#8X    % -6d", i, "CALLBI", loc, arg_count)
             i += 3
         case u8(Op_Code.JMP):
             hi := procedure.chunk.code[i+1]
