@@ -166,7 +166,6 @@ set_local :: proc(vm: ^Virtual_Machine) {
     stack_offset := read_u16(vm)
     if stack_offset == u16(frame.sp - 1) {
         vm.local_count += 1
-
     } else if stack_offset < u16(frame.sp - 1) {
         val := stack_pop(vm)
         vm.stack[stack_offset] = val
