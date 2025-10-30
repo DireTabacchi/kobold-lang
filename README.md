@@ -70,6 +70,20 @@ false   // bool (Boolean)
 ""      // string (Empty string)
 ```
 
+## Operators
+
+The operators are, in order of high-to-low precedence, line-by-line:
+
+```
+()          // grouping, parenthesized expression
+! -         // unary NOT, negative
+* / % %%    // multiply, divide, truncated modulus, floored modulus
++ -         // add, subtract
+== !=       // Equality and Inequality
+&&          // Logical AND
+||          // Logical OR
+```
+
 ## Variable Declarations
 
 A variable can be either mutable or immutable. How they are declared decides their mutability.
@@ -108,18 +122,38 @@ const initial: rune = 'K';
 const name: string = "Kobold";
 ```
 
-## Operators
+### Assignment
 
-The operators are, in order of high-to-low precedence, line-by-line:
+`var` variables can be reassigned using the assignment operators.
+
+#### Simple Assignment
+
+A basic assignment uses the `=` operator.
 
 ```
-()          // grouping, parenthesized expression
-! -         // unary NOT, negative
-* / % %%    // multiply, divide, truncated modulus, floored modulus
-+ -         // add, subtract
-== !=       // Equality and Inequality
-&&          // Logical AND
-||          // Logical OR
+var foo := 3;
+var bar := 7;
+foo = bar + 20;     // Assign the variable `foo` to the value `bar + 20`
+```
+
+#### Assignment Operations
+
+Assignment-like operators exist for each of the arithmetic operators.
+
+```
+foo += 1;   // add 1 to foo; equivalent to `foo = foo + 1`
+foo -= 1;   // subtract 1 from foo; equivalent to `foo = foo - 1`
+foo *= 3;   // multiply foo by 3; equivalent to `foo = foo * 3`
+foo /= 3;   // divide foo by 3; equivalent to `foo = foo / 3`
+foo %= 2;   // apply modulus to foo by 2; equivalent to `foo = foo % 2`
+foo %%= 2;  // apply floored modulus to foo by 2; equivalent to `foo = foo %% 2`
+```
+
+Any expression can be used with assignment-like operators. The expression will first be evaluated, then the operation
+defined by the operator will be performed.
+
+```
+foo += bar + 70 / baz;  // equivalent to `foo = foo + (bar + 70 / baz)`
 ```
 
 ## If Statements
@@ -174,7 +208,7 @@ var a := 0;
 var b := 1;
 var n := 10;
 
-for var i := 1; i < n; i = i + 1 {
+for var i := 1; i < n; i += 1 {
     var c := a + b;
     a = b;
     b = c;
@@ -284,9 +318,9 @@ The following is a list of items that are planned for the language before hittin
 
 - [X] Constant Declarations
 - [X] Variable Declarations
-- [ ] Assignment Statements
+- [X] Assignment Statements
     - [X] Basic Assignment (`a = expr;`)
-    - [ ] Assignment Operation Operators (`+=`, `*=`, `-=`,etc.)
+    - [X] Assignment Operation Operators (`+=`, `*=`, `-=`,etc.)
 - [ ] Operators
     - [X] Arithmetic Operators
     - [X] Logical Operators
