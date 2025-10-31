@@ -131,10 +131,15 @@ Unary_Expression :: struct {
     expr: ^Expression,
 }
 
+Expression_List :: struct {
+    using node: Expression,
+    list: []^Expression,
+}
+
 Proc_Call :: struct {
     using node: Expression,
     name: string,
-    args: []^Expression,
+    args: ^Expression,
 }
 
 Literal :: struct {
@@ -159,9 +164,14 @@ Builtin_Type :: struct {
     type: tokenizer.Token_Kind,
 }
 
+Array_Type :: struct {
+    using node: Type_Specifier,
+    length: int,
+    type: ^Type_Specifier,
+}
+
 Invalid_Type :: struct {
     using node: Type_Specifier,
-    tok: tokenizer.Token,
 }
 
 Any_Statement :: union {
@@ -182,6 +192,7 @@ Any_Statement :: union {
 
 Any_Expression :: union {
     ^Invalid_Expression,
+    ^Expression_List,
     ^Binary_Expression,
     ^Unary_Expression,
     ^Proc_Call,
@@ -193,6 +204,7 @@ Any_Expression :: union {
 Any_Type :: union {
     ^Invalid_Type,
     ^Builtin_Type,
+    ^Array_Type,
 }
 
 new :: proc($T: typeid, start, end: tokenizer.Pos) -> ^T {
@@ -322,6 +334,14 @@ expression_destroy :: proc(expr: Any_Expression) {
     #partial switch e in expr {
     case ^Invalid_Expression:
         free(e)
+    case ^Expression_List:
+        for item in e.list {
+            expression_destroy(item.derived_expression)
+        }
+        if e.list != nil {
+            delete(e.list)
+        }
+        free(e)
     case ^Binary_Expression:
         expression_destroy(e.left.derived_expression)
         expression_destroy(e.right.derived_expression)
@@ -334,12 +354,7 @@ expression_destroy :: proc(expr: Any_Expression) {
     case ^Identifier:
         free(e)
     case ^Proc_Call:
-        for arg in e.args {
-            expression_destroy(arg.derived_expression)
-        }
-        if e.args != nil {
-            delete(e.args)
-        }
+        expression_destroy(e.args.derived_expression)
         free(e)
     }
 }
@@ -349,6 +364,9 @@ type_specifier_destroy :: proc(type_spec: Any_Type) {
     case ^Invalid_Type:
         free(ts)
     case ^Builtin_Type:
+        free(ts)
+    case ^Array_Type:
+        type_specifier_destroy(ts.type.derived_type)
         free(ts)
     }
 }

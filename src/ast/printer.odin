@@ -49,7 +49,7 @@ print_stmt :: proc(ap: ^AST_Printer, stmt: Any_Statement) {
         write_tabs(ap)
         fmt.sbprintfln(&ap.builder, "\u251Cname: %s", st.name)
         write_tabs(ap)
-        strings.write_rune(&ap.builder, '\u251C')
+        strings.write_string(&ap.builder, "\u251Ctype:\n")
         //fmt.println(st.type)
         print_type_specifier(ap, st.type.derived_type)
         write_tabs(ap)
@@ -258,9 +258,21 @@ print_stmt :: proc(ap: ^AST_Printer, stmt: Any_Statement) {
 }
 
 print_type_specifier :: proc(ap: ^AST_Printer, type: Any_Type) {
+    ap.indent_lvl += 1
+    defer ap.indent_lvl -= 1
+
     switch t in type {
     case ^Builtin_Type:
         fmt.sbprintfln(&ap.builder, "\u2514type: %s", t.type)
+    case ^Array_Type:
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514Array:\n")
+        ap.indent_lvl += 1
+        defer ap.indent_lvl -= 1
+        write_tabs(ap)
+        fmt.sbprintfln(&ap.builder, "\u251Clength: %d", t.length)
+        write_tabs(ap)
+        print_type_specifier(ap, t.type.derived_type)
     case ^Invalid_Type:
         strings.write_string(&ap.builder, "\u2514type: INVALID\n")
     }
@@ -271,6 +283,20 @@ print_expr :: proc(ap: ^AST_Printer, expr: Any_Expression) {
     defer ap.indent_lvl -= 1
 
     #partial switch ex in expr {
+    case ^Expression_List:
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514Expression List:\n")
+        if len(ex.list) == 0 {
+            ap.indent_lvl += 1
+            write_tabs(ap)
+            strings.write_string(&ap.builder, "<empty>\n")
+            ap.indent_lvl -= 1
+        } else {
+            for item in ex.list {
+                print_expr(ap, item.derived_expression)
+            }
+        }
+
     case ^Binary_Expression:
         write_tabs(ap)
         strings.write_string(&ap.builder, "\u2514Binary Expression:\n")
@@ -284,6 +310,7 @@ print_expr :: proc(ap: ^AST_Printer, expr: Any_Expression) {
         write_tabs(ap)
         strings.write_string(&ap.builder, "right:\n")
         print_expr(ap, ex.right.derived_expression)
+
     case ^Unary_Expression:
         write_tabs(ap)
         strings.write_string(&ap.builder, "\u2514Unary Expression:\n")
@@ -294,6 +321,7 @@ print_expr :: proc(ap: ^AST_Printer, expr: Any_Expression) {
         write_tabs(ap)
         strings.write_string(&ap.builder, "expr:\n")
         print_expr(ap, ex.expr.derived_expression)
+
     case ^Literal:
         write_tabs(ap)
         strings.write_string(&ap.builder, "\u2514Literal:\n")
@@ -303,6 +331,7 @@ print_expr :: proc(ap: ^AST_Printer, expr: Any_Expression) {
         fmt.sbprintfln(&ap.builder, "\u251Ctype: %v", ex.type)
         write_tabs(ap)
         fmt.sbprintfln(&ap.builder, "\u2514value: %s", ex.value)
+
     case ^Identifier:
         write_tabs(ap)
         strings.write_string(&ap.builder, "\u2514Identifier:\n")
@@ -310,6 +339,7 @@ print_expr :: proc(ap: ^AST_Printer, expr: Any_Expression) {
         defer ap.indent_lvl -= 1
         write_tabs(ap)
         fmt.sbprintfln(&ap.builder, "\u2514name: %s", ex.name)
+
     case ^Proc_Call:
         write_tabs(ap)
         strings.write_string(&ap.builder, "\u2514Procedure Call:\n")
@@ -319,16 +349,7 @@ print_expr :: proc(ap: ^AST_Printer, expr: Any_Expression) {
         fmt.sbprintfln(&ap.builder, "\u251Cname: %s", ex.name)
         write_tabs(ap)
         strings.write_string(&ap.builder, "\u2514args:\n")
-        if len(ex.args) == 0 {
-            ap.indent_lvl += 1
-            write_tabs(ap)
-            strings.write_string(&ap.builder, "<empty>\n")
-            ap.indent_lvl -= 1
-        } else {
-            for arg in ex.args {
-                print_expr(ap, arg.derived_expression)
-            }
-        }
+        print_expr(ap, ex.args.derived_expression)
     case ^Selector:
         write_tabs(ap)
         strings.write_string(&ap.builder, "\u2514Identifier Selector:\n")

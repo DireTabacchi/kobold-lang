@@ -3,6 +3,7 @@ package parser
 // TODO: More robust error handling
 
 import "core:fmt"
+import "core:strconv"
 
 import "kobold:ast"
 import "kobold:tokenizer"
@@ -97,7 +98,6 @@ parse_statement :: proc(p: ^Parser) -> ^ast.Statement {
                 return parse_assign_statement(p, true)
             case .Semicolon:
                 reset_to_token(p, start_idx)
-                fmt.println("found an expr statement")
                 return parse_expr_statement(p)
             case .EOF:
                 error(p, start_pos, "Unterminated statement")
@@ -438,18 +438,34 @@ parse_var_decl :: proc(p: ^Parser) -> ^ast.Statement {
     ident := expect_token(p, .Identifier)
     expect_token(p, .Colon)
     type := parse_type_specifier(p)
+    val: ^ast.Expression = nil
+    val_pos := p.curr_tok.pos
     if _, is_assign := check_token(p, .Assign); is_assign {
         advance_token(p)
+
+        #partial switch t in type.derived_type {
+        case ^ast.Array_Type:
+            expect_token(p, .L_Brace)
+            val = parse_expr_list(p)
+            expect_token(p, .R_Brace)
+        case ^ast.Builtin_Type:
+            val = parse_expression(p)
+        }
     }
 
-    val := parse_expression(p)
     expect_token(p, .Semicolon)
+
+    if val == nil {
+        val = ast.new(ast.Invalid_Expression, val_pos, end_pos(p.prev_tok))
+    }
+
     vd := ast.new(ast.Declarator, start_pos, end_pos(p.prev_tok))
     vd.name = ident.text
     vd.mutable = true
 
     _, invalid_val := val.derived_expression.(^ast.Invalid_Expression)
 
+    // TODO: This needs to be moved to a checker
     expr_type := expression_type(p, val)
     if type == nil && !invalid_val {
         if _, invalid := expr_type.derived_type.(^ast.Invalid_Type); invalid {
@@ -468,13 +484,27 @@ parse_var_decl :: proc(p: ^Parser) -> ^ast.Statement {
         free(val)
         free(expr_type)
     } else if type != nil && !invalid_val {
-        type_type, valid := type.derived_type.(^ast.Builtin_Type)
-        if val_type := expr_type.derived_type.(^ast.Builtin_Type); valid && val_type.type != type_type.type {
-            errorf_msg(p, start_pos, "cannot assign value of type `%s` to variable of type `%s`", val_type.type, type_type.type)
-            vd.type = ast.new(ast.Invalid_Type, start_pos, end_pos(p.prev_tok))
-        } else {
-            vd.type = type
+        #partial switch t in type.derived_type {
+        case ^ast.Builtin_Type:
+            if expr_type_val, valid := expr_type.derived_type.(^ast.Builtin_Type); valid && expr_type_val.type != t.type {
+                errorf_msg(p, start_pos, "cannot assign value of type `%s` to variable of type `%s`", expr_type_val.type, t.type)
+            } else {
+                vd.type = type
+            }
+        case ^ast.Array_Type:
+            if _, valid_arr_type := expr_type.derived_type.(^ast.Array_Type); !valid_arr_type {
+                errorf_msg(p, start_pos, "array must be initialized with an expression list")
+            } else {
+                vd.type = type
+            }
         }
+        //type_type, valid := type.derived_type.(^ast.Builtin_Type)
+        //if val_type := expr_type.derived_type.(^ast.Builtin_Type); valid && val_type.type != type_type.type {
+        //    errorf_msg(p, start_pos, "cannot assign value of type `%s` to variable of type `%s`", val_type.type, type_type.type)
+        //    vd.type = ast.new(ast.Invalid_Type, start_pos, end_pos(p.prev_tok))
+        //} else {
+        //    vd.type = type
+        //}
         vd.value = val
         free(expr_type)
     }
@@ -488,6 +518,8 @@ parse_var_decl :: proc(p: ^Parser) -> ^ast.Statement {
     #partial switch t in vd.type.derived_type {
     case ^ast.Builtin_Type:
         var_type = t.type
+    case ^ast.Array_Type:
+        var_type = .Array
     }
 
     var_symbol := symbol.Symbol{ vd.name, var_type, true, p.curr_scope, len(p.sym_table.symbols) }
@@ -498,6 +530,10 @@ parse_var_decl :: proc(p: ^Parser) -> ^ast.Statement {
 
 expression_type :: proc(p: ^Parser, expr: ^ast.Expression) -> ^ast.Type_Specifier {
     #partial switch e in expr.derived_expression {
+    case ^ast.Expression_List:
+        ts := ast.new(ast.Array_Type, e.start, e.end)
+        ts.length = len(e.list)
+        return ts
     case ^ast.Binary_Expression:
         #partial switch e.op.type {
         case .Logical_And..=.Geq:
@@ -585,9 +621,31 @@ parse_type_specifier :: proc(p: ^Parser) -> ^ast.Type_Specifier {
 
     start_pos := p.curr_tok.pos
     t := advance_token(p)
-    ts := ast.new(ast.Builtin_Type, start_pos, end_pos(p.prev_tok))
-    ts.type = t.type
-    return ts
+    #partial switch t.type {
+    case .Type_Integer..=.Type_String:
+        bt := ast.new(ast.Builtin_Type, start_pos, end_pos(p.prev_tok))
+        bt.type = t.type
+        return bt
+    case .Array:
+        expect_token(p, .L_Bracket)
+        cap_tok := advance_token(p)
+        if cap_tok.type != .Integer && cap_tok.type != .Unsigned_Integer {
+            return nil
+        }
+        cap_val: int
+        #partial switch cap_tok.type {
+        case .Integer, .Unsigned_Integer:
+            cap_val, _ = strconv.parse_int(cap_tok.text)
+        }
+        expect_token(p, .R_Bracket)
+        arr_type := parse_type_specifier(p)
+        at := ast.new(ast.Array_Type, start_pos, end_pos(p.prev_tok))
+        at.length = cap_val
+        at.type = arr_type
+        return at
+    }
+    it := ast.new(ast.Invalid_Type, start_pos, end_pos(p.prev_tok))
+    return it
 }
 
 parse_expr_statement :: proc(p: ^Parser) -> ^ast.Statement {
@@ -736,9 +794,10 @@ parse_proc_call :: proc(p: ^Parser) -> ^ast.Expression {
     return pc
 }
 
-parse_expr_list :: proc(p: ^Parser) -> []^ast.Expression {
+parse_expr_list :: proc(p: ^Parser) -> ^ast.Expression {
+    start_pos := p.curr_tok.pos
     expr_list: [dynamic]^ast.Expression
-    for p.curr_tok.type != .R_Paren {
+    for p.curr_tok.type != .R_Paren && p.curr_tok.type != .R_Brace {
         pos := p.curr_tok.pos
         expr := parse_expression(p)
         if expr == nil {
@@ -751,7 +810,10 @@ parse_expr_list :: proc(p: ^Parser) -> []^ast.Expression {
         }
     }
 
-    return expr_list[:]
+    el := ast.new(ast.Expression_List, start_pos, end_pos(p.prev_tok))
+    el.list = expr_list[:]
+
+    return el
 }
 
 parse_literal :: proc(p: ^Parser) -> ^ast.Expression {
