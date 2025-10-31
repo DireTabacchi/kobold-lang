@@ -1,0 +1,2 @@
+var my_arr: array[10]int;
+//var my_arr: array[3]int = { 1, 2, 3 };
