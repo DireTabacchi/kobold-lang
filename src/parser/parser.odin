@@ -498,13 +498,6 @@ parse_var_decl :: proc(p: ^Parser) -> ^ast.Statement {
                 vd.type = type
             }
         }
-        //type_type, valid := type.derived_type.(^ast.Builtin_Type)
-        //if val_type := expr_type.derived_type.(^ast.Builtin_Type); valid && val_type.type != type_type.type {
-        //    errorf_msg(p, start_pos, "cannot assign value of type `%s` to variable of type `%s`", val_type.type, type_type.type)
-        //    vd.type = ast.new(ast.Invalid_Type, start_pos, end_pos(p.prev_tok))
-        //} else {
-        //    vd.type = type
-        //}
         vd.value = val
         free(expr_type)
     }

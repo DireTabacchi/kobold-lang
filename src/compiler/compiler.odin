@@ -75,12 +75,23 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt:
     case ^ast.Declarator:
         if comp.curr_scope == 0 {
             idx : u16 = u16(len(comp.globals))
-            make_global(comp, st.name, st.type.derived_type.(^ast.Builtin_Type).type, st.mutable)
+            #partial switch type in st.type.derived_type {
+            case ^ast.Builtin_Type:
+                make_global(comp, st.name, type, st.mutable)
+            case ^ast.Array_Type:
+                make_global(comp, st.name, type, st.mutable)
+            }
             if st.value != nil {
                 compile_expression(comp, curr_proc, st.value.derived_expression)
             } else {
-                decl_type := st.type.derived_type.(^ast.Builtin_Type).type
-                emit_constant(&curr_proc.chunk, decl_type)
+                //decl_type: tokenizer.Token_Kind
+                //switch type in st.type.derived_type {
+                //case ^ast.Builtin_Type:
+                //    decl_type = type.type
+                //case ^ast.Array_Type:
+                //    decl_type = tokenizer.Token_Kind.Array
+                //}
+                emit_constant(&curr_proc.chunk, st.type^)
             }
             emit_byte(&curr_proc.chunk, byte(Op_Code.SETG))
             emit_bytes(&curr_proc.chunk, idx)
@@ -90,8 +101,8 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt:
             if st.value != nil {
                 compile_expression(comp, curr_proc, st.value.derived_expression)
             } else {
-                decl_type := st.type.derived_type.(^ast.Builtin_Type).type
-                emit_constant(&curr_proc.chunk, decl_type)
+                //decl_type := st.type.derived_type.(^ast.Builtin_Type).type
+                emit_constant(&curr_proc.chunk, st.type^)
             }
             emit_byte(&curr_proc.chunk, byte(Op_Code.SETL))
             emit_bytes(&curr_proc.chunk, idx)
@@ -297,8 +308,37 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt:
     }
 }
 
-make_global :: proc(comp: ^Compiler, name: string, type: tokenizer.Token_Kind, mutable: bool) {
-    sym := symbol.Symbol{ name, type, mutable, comp.curr_scope, len(comp.globals) }
+make_array :: proc (arr_type_info: ast.Array_Type, mutable: bool) -> object.Array {
+    arr: object.Array
+    arr.len = arr_type_info.length
+    switch subtype in arr_type_info.type.derived_type {
+    case ^ast.Builtin_Type:
+        arr.data = make([]object.Value, arr_type_info.length)
+        for i := 0; i < arr_type_info.length; i += 1 {
+            arr.data[i] = object.value_from_token_kind(subtype.type, mutable)
+        }
+    case ^ast.Array_Type:
+    case ^ast.Invalid_Type:
+    }
+
+    return arr
+}
+
+//make_array_data :: proc() -> []object.Value_Type {
+//
+//}
+
+make_global :: proc(comp: ^Compiler, name: string, type: ast.Type_Specifier, mutable: bool) {
+    type_tok: tokenizer.Token_Kind
+    switch t in type.derived_type {
+    case ^ast.Builtin_Type:
+        type_tok = t.type
+    case ^ast.Array_Type:
+        type_tok = tokenizer.Token_Kind.Array
+    case ^ast.Invalid_Type:
+        type_tok = tokenizer.Token_Kind.Invalid
+    }
+    sym := symbol.Symbol{ name, type_tok, mutable, comp.curr_scope, len(comp.globals) }
     append(&comp.sym_table.symbols, sym)
 
     val: object.Global
@@ -321,6 +361,14 @@ make_global :: proc(comp: ^Compiler, name: string, type: tokenizer.Token_Kind, m
     case .Type_Rune:
         val.type = .Rune
         val.value = rune(0)
+    case .Array:
+        arr_type := type.derived_type.(^ast.Array_Type)
+        val.type = .Array
+        //arr: object.Array
+        arr := make_array(arr_type^, sym.mutable)
+        val.value = arr
+        //arr.len = arr_type.length
+        //arr.data = make([arr_type.length]arr_type.type)
     }
     val.mutable = sym.mutable
     append(&comp.globals, val)
@@ -458,18 +506,20 @@ compile_expression :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, expr
         sym, exists := resolve_symbol(comp, e.name)
         if !exists {
             if e.name in proc_lib.builtin_procs {
-                #reverse for arg in e.args {
-                    compile_expression(comp, curr_proc, arg.derived_expression)
-                }
-                id: int
-                for builtin, idx in comp.builtin_procs {
-                    if builtin.name == e.name {
-                        id = idx
+                if el, ok := e.args.derived_expression.(^ast.Expression_List); ok {
+                    #reverse for arg in el.list {
+                        compile_expression(comp, curr_proc, arg.derived_expression)
                     }
+                    id: int
+                    for builtin, idx in comp.builtin_procs {
+                        if builtin.name == e.name {
+                            id = idx
+                        }
+                    }
+                    emit_byte(&curr_proc.chunk, byte(Op_Code.CALLBI))
+                    emit_bytes(&curr_proc.chunk, u16(id))
+                    emit_byte(&curr_proc.chunk, byte(len(el.list)))
                 }
-                emit_byte(&curr_proc.chunk, byte(Op_Code.CALLBI))
-                emit_bytes(&curr_proc.chunk, u16(id))
-                emit_byte(&curr_proc.chunk, byte(len(e.args)))
                 return
             } else {
                 // TODO: should error, do not run code
@@ -478,11 +528,13 @@ compile_expression :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, expr
             }
         }
 
-        for arg in e.args {
-            compile_expression(comp, curr_proc, arg.derived_expression)
+        if el, ok := e.args.derived_expression.(^ast.Expression_List); ok {
+            for arg in el.list {
+                compile_expression(comp, curr_proc, arg.derived_expression)
+            }
+            emit_byte(&curr_proc.chunk, byte(Op_Code.CALL))
+            emit_bytes(&curr_proc.chunk, u16(sym.id))
         }
-        emit_byte(&curr_proc.chunk, byte(Op_Code.CALL))
-        emit_bytes(&curr_proc.chunk, u16(sym.id))
     }
 }
 
@@ -493,28 +545,36 @@ emit_constant_val :: proc(chunk: ^code.Chunk, val: object.Value) {
     emit_bytes(chunk, idx)
 }
 
-emit_constant_zero :: proc(chunk: ^code.Chunk, type: tokenizer.Token_Kind) {
+emit_constant_zero :: proc(chunk: ^code.Chunk, type: ast.Type_Specifier) {
     val: object.Value
     val.mutable = true
-    #partial switch type {
-    case .Type_Integer:
-        val.type = .Integer
-        val.value = i64(0)
-    case .Type_Unsigned_Integer:
-        val.type = .Unsigned_Integer
-        val.value = u64(0)
-    case .Type_Float:
-        val.type = .Float
-        val.value = f64(0)
-    case .Type_Boolean:
-        val.type = .Boolean
-        val.value = false
-    case .Type_String:
-        val.type = .String
-        val.value = ""
-    case .Type_Rune:
-        val.type = .Rune
-        val.value = rune(0)
+    #partial switch t in type.derived_type {
+    case ^ast.Builtin_Type:
+        #partial switch t.type {
+        case .Type_Integer:
+            val.type = .Integer
+            val.value = i64(0)
+        case .Type_Unsigned_Integer:
+            val.type = .Unsigned_Integer
+            val.value = u64(0)
+        case .Type_Float:
+            val.type = .Float
+            val.value = f64(0)
+        case .Type_Boolean:
+            val.type = .Boolean
+            val.value = false
+        case .Type_String:
+            val.type = .String
+            val.value = ""
+        case .Type_Rune:
+            val.type = .Rune
+            val.value = rune(0)
+        }
+    case ^ast.Array_Type:
+        arr_type := type.derived_type.(^ast.Array_Type)
+        arr := make_array(arr_type^, true)
+        val.type = object.Value_Kind.Array
+        val.value = arr
     }
 
     emit_constant_val(chunk, val)

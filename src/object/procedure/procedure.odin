@@ -62,7 +62,7 @@ builtin_print :: proc(args: ..object.Value) -> object.Value {
         // TODO: Find better way to handle escapes
         #partial switch arg.type {
         case .String:
-            if arg.value == `\n` {
+            if arg.value.(string) == `\n` {
                 fmt.print("\n")
             } else {
                 fmt.print(arg.value)
@@ -79,7 +79,7 @@ builtin_println :: proc(args: ..object.Value) -> object.Value {
         // TODO: See builtin_print
         #partial switch arg.type {
         case .String:
-            if arg.value == `\n` {
+            if arg.value.(string) == `\n` {
                 fmt.print("\n")
             } else {
                 fmt.print(arg.value)
