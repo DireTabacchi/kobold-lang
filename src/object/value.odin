@@ -44,6 +44,24 @@ Array :: struct {
     len: int,
 }
 
+value_kind :: proc(tok_type: tokenizer.Token_Kind) -> Value_Kind {
+    #partial switch tok_type {
+    case .Type_Integer:
+        return Value_Kind.Integer
+    case .Type_Unsigned_Integer:
+        return Value_Kind.Unsigned_Integer
+    case .Type_Float:
+        return Value_Kind.Float
+    case .Type_Boolean:
+        return Value_Kind.Boolean
+    case .Type_String:
+        return Value_Kind.String
+    case .Type_Rune:
+        return Value_Kind.Rune
+    }
+    return Value_Kind.Nil
+}
+
 value_from_token_kind :: proc(val_type: tokenizer.Token_Kind, mutable: bool) -> Value {
     val: Value
     val.mutable = mutable

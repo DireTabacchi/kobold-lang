@@ -36,9 +36,17 @@ Op_Code :: enum byte {
             // Op1: 2-byte location on the stack.
     GETL,   // Get a the value of a local variable from the stack, and push its value on the stack.
             // Op1: 2-byte location on the stack.
+    BLDARR, // Build an array object and place the result on the stack. The array will be built from values existing on
+            // the stack.
+            // Op1: 2-byte quantity of items on the stack to build an array from.
+    GETARR, // Access an element in an array. The array being accessed is the first item on the stack [SP-1], and index
+            // in the array to access is the next [SP-2]. These two values will be popped from the stack, and the array
+            // element will be pushed onto the stack.
+    SETARR, // Set an element in an array.
     RET,    // Return (a possible value) from a function call. Can also be used to stop program execution.
             // Will clean up local variables from the stack that may have been created during function execution.
-            // (Planned) Return (a possible value) from function call. (Current) Exit program execution.
+            // [Procedure]      Return (a possible value) from procedure call.
+            // [Main Script]    Exit program execution.
 }
 
 Byte_Code :: byte

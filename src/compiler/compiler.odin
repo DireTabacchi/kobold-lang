@@ -54,6 +54,12 @@ compiler_destroy :: proc(comp: ^Compiler) {
     free(comp.main_proc)
     delete(comp.procs)
     delete(comp.builtin_procs)
+    for g in comp.globals {
+        if g.type == object.Value_Kind.Array {
+            arr, _ := g.value.(object.Array)
+            delete(arr.data)
+        }
+    }
     delete(comp.globals)
     delete(comp.locals)
     delete(comp.loop_scopes)
@@ -83,6 +89,10 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt:
             }
             if st.value != nil {
                 compile_expression(comp, curr_proc, st.value.derived_expression)
+                if arr_type, is_arr := st.type.derived_type.(^ast.Array_Type); is_arr {
+                    emit_byte(&curr_proc.chunk, byte(Op_Code.BLDARR))
+                    emit_bytes(&curr_proc.chunk, u16(arr_type.length))
+                }
             } else {
                 //decl_type: tokenizer.Token_Kind
                 //switch type in st.type.derived_type {
@@ -317,7 +327,9 @@ make_array :: proc (arr_type_info: ast.Array_Type, mutable: bool) -> object.Arra
         for i := 0; i < arr_type_info.length; i += 1 {
             arr.data[i] = object.value_from_token_kind(subtype.type, mutable)
         }
+        arr.type = object.value_kind(subtype.type)
     case ^ast.Array_Type:
+        // TODO: multi-dimensional arrays
     case ^ast.Invalid_Type:
     }
 
@@ -364,11 +376,8 @@ make_global :: proc(comp: ^Compiler, name: string, type: ast.Type_Specifier, mut
     case .Array:
         arr_type := type.derived_type.(^ast.Array_Type)
         val.type = .Array
-        //arr: object.Array
         arr := make_array(arr_type^, sym.mutable)
         val.value = arr
-        //arr.len = arr_type.length
-        //arr.data = make([arr_type.length]arr_type.type)
     }
     val.mutable = sym.mutable
     append(&comp.globals, val)
@@ -466,6 +475,10 @@ compile_expression :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, expr
             emit_byte(&curr_proc.chunk, byte(Op_Code.NEG))
         case .Not:
             emit_byte(&curr_proc.chunk, byte(Op_Code.NOT))
+        }
+    case ^ast.Expression_List:
+        #reverse for el in e.list {
+            compile_expression(comp, curr_proc, el.derived_expression)
         }
     case ^ast.Literal:
         #partial switch e.type {
@@ -571,8 +584,8 @@ emit_constant_zero :: proc(chunk: ^code.Chunk, type: ast.Type_Specifier) {
             val.value = rune(0)
         }
     case ^ast.Array_Type:
-        arr_type := type.derived_type.(^ast.Array_Type)
-        arr := make_array(arr_type^, true)
+        //arr_type := type.derived_type.(^ast.Array_Type)
+        arr := make_array(t^, true)
         val.type = object.Value_Kind.Array
         val.value = arr
     }
