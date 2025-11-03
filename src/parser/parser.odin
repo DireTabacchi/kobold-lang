@@ -495,7 +495,7 @@ parse_var_decl :: proc(p: ^Parser) -> ^ast.Statement {
             vd.type = t
         }
         vd.value = val
-        free(expr_type)
+        //free(expr_type)
     } else if type == nil && invalid_val {
         errorf_msg(p, start_pos, "cannot deduce type of var `%s`", vd.name)
         vd.type = ast.new(ast.Invalid_Type, start_pos, end_pos(p.prev_tok))

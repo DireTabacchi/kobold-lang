@@ -9,7 +9,8 @@ _ :: mem
 import "kobold:tokenizer"
 import "kobold:parser"
 import "kobold:ast"
-//import "kobold:compiler"
+import "kobold:compiler"
+import "kobold:object/procedure"
 //import "kobold:vm"
 
 KOBOLD_VERSION :: "0.0.43"
@@ -78,13 +79,14 @@ main :: proc() {
 
     ast.printer_destroy(&printer)
 
-    //comp: compiler.Compiler
-    //compiler.compiler_init(&comp)
+    comp: compiler.Compiler
+    compiler.compiler_init(&comp)
+    defer procedure.builtin_procs_destroy()
 
-    //compiler.compile(&comp, p.prog)
-    //defer compiler.compiler_destroy(&comp)
+    compiler.compile(&comp, p.prog)
+    defer compiler.compiler_destroy(&comp)
 
-    //compiler.print(comp)
+    compiler.print(comp)
 
     //fmt.println("Constants:")
     //fmt.println(comp.chunk.constants)

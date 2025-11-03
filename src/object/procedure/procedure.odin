@@ -57,6 +57,10 @@ builtin_procs := map[string]Builtin_Proc{
     },
 }
 
+builtin_procs_destroy :: proc() {
+    delete(builtin_procs)
+}
+
 builtin_print :: proc(args: ..object.Value) -> object.Value {
     for arg in args {
         // TODO: Find better way to handle escapes

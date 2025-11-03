@@ -42,7 +42,9 @@ Op_Code :: enum byte {
     GETARR, // Access an element in an array. The array being accessed is the first item on the stack [SP-1], and index
             // in the array to access is the next [SP-2]. These two values will be popped from the stack, and the array
             // element will be pushed onto the stack.
-    SETARR, // Set an element in an array.
+    SETARR, // Set an element in an array. Pop the top three values of the stack ([SP-1] is array to modify, [SP-2] is
+            // the index to set, [SP-3] is the value to set at the index) and push the resulting array to the top of
+            // the stack.
     RET,    // Return (a possible value) from a function call. Can also be used to stop program execution.
             // Will clean up local variables from the stack that may have been created during function execution.
             // [Procedure]      Return (a possible value) from procedure call.

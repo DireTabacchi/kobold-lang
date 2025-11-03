@@ -1,6 +1,7 @@
 package compiler
 
 import "core:fmt"
+import "core:mem"
 import "core:strconv"
 import "core:strings"
 import "core:unicode/utf8"
@@ -53,6 +54,9 @@ compiler_destroy :: proc(comp: ^Compiler) {
     code.chunk_destroy(&comp.main_proc.chunk)
     free(comp.main_proc)
     delete(comp.procs)
+    for len(comp.builtin_procs) > 0 {
+        pop(&comp.builtin_procs)
+    }
     delete(comp.builtin_procs)
     for g in comp.globals {
         if g.type == object.Value_Kind.Array {
@@ -65,7 +69,7 @@ compiler_destroy :: proc(comp: ^Compiler) {
     delete(comp.loop_scopes)
     delete(comp.proc_scopes)
     delete(comp.break_stats)
-    symbol.destroy(comp.sym_table)
+    symbol.table_destroy(comp.sym_table)
 }
 
 compile :: proc(comp: ^Compiler, prog: ^ast.Program) {
@@ -107,7 +111,7 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt:
             emit_bytes(&curr_proc.chunk, idx)
         } else {
             idx : u16 = u16(len(comp.locals))
-            make_local(comp, st.name, st.type.derived_type.(^ast.Builtin_Type).type, st.mutable)
+            make_local(comp, st.name, st.type, st.mutable)
             if st.value != nil {
                 compile_expression(comp, curr_proc, st.value.derived_expression)
             } else {
@@ -117,17 +121,49 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt:
             emit_byte(&curr_proc.chunk, byte(Op_Code.SETL))
             emit_bytes(&curr_proc.chunk, idx)
         }
+
     case ^ast.Assignment_Statement:
-        _, scope, idx := resolve_variable(comp, st.name)
-        compile_expression(comp, curr_proc, st.value.derived_expression)
-        if scope == 0 {
-            emit_byte(&curr_proc.chunk, byte(Op_Code.SETG))
-        } else {
-            emit_byte(&curr_proc.chunk, byte(Op_Code.SETL))
+        scope, idx: int
+        #partial switch ident in st.ident.derived_expression {
+        case ^ast.Identifier:
+            _, scope, idx = resolve_variable(comp, ident.name)
+        case ^ast.Array_Accessor:
+            _, scope, idx = resolve_variable(comp, ident.ident)
+            //compile_expression(comp, curr_proc, ident.index.derived_expression)
         }
+        //_, scope, idx := resolve_variable(comp, st.name)
+        compile_expression(comp, curr_proc, st.value.derived_expression)
+        set_op, get_op: Op_Code
+        if scope == 0 {
+            set_op = .SETG
+            get_op = .GETG
+        } else {
+            set_op = .SETL
+            get_op = .GETL
+        }
+        //if scope == 0 {
+        //    emit_byte(&curr_proc.chunk, byte(Op_Code.SETG))
+        //} else {
+        //    emit_byte(&curr_proc.chunk, byte(Op_Code.SETL))
+        //}
+        #partial switch ident in st.ident.derived_expression {
+        case ^ast.Array_Accessor:
+            compile_expression(comp, curr_proc, ident.index.derived_expression)
+            emit_byte(&curr_proc.chunk, byte(get_op))
+            emit_bytes(&curr_proc.chunk, u16(idx))
+            emit_byte(&curr_proc.chunk, byte(Op_Code.SETARR))
+        }
+        emit_byte(&curr_proc.chunk, byte(set_op))
         emit_bytes(&curr_proc.chunk, u16(idx))
+
     case ^ast.Assignment_Operation_Statement:
-        _, scope, idx := resolve_variable(comp, st.name)
+        scope, idx: int
+        #partial switch ident in st.ident.derived_expression {
+        case ^ast.Identifier:
+            _, scope, idx = resolve_variable(comp, ident.name)
+        case ^ast.Array_Accessor:
+            _, scope, idx = resolve_variable(comp, ident.ident)
+        }
         set_op, get_op: Op_Code
         if scope == 0 {
             set_op = .SETG
@@ -289,9 +325,10 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt:
         append(&comp.proc_scopes, comp.curr_scope)
         for param in st.params {
             if param_stmt, ok := param.derived_statement.(^ast.Parameter_Declarator); ok {
-                if param_type, valid := param_stmt.type.derived_type.(^ast.Builtin_Type); valid {
-                    make_local(comp, param_stmt.name, param_type.type, false)
-                }
+                make_local(comp, param_stmt.name, param_stmt.type, false)
+                //if param_type, valid := param_stmt.type.derived_type.(^ast.Builtin_Type); valid {
+                //    make_local(comp, param_stmt.name, param_type.type, false)
+                //}
             }
         }
         for s in st.body {
@@ -305,7 +342,9 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt:
             emit_byte(&new_proc.chunk, byte(Op_Code.RET))
         }
 
-        sym := symbol.Symbol{ new_proc.name, tokenizer.Token_Kind.Proc, false, comp.curr_scope, len(comp.procs) }
+        proc_sym_type, _ := mem.new(symbol.Simple_Symbol_Type)
+        proc_sym_type.type = tokenizer.Token_Kind.Proc
+        sym := symbol.Symbol{ new_proc.name, proc_sym_type, false, comp.curr_scope, len(comp.procs) }
 
         append(&comp.sym_table.symbols, sym)
         append(&comp.procs, new_proc)
@@ -340,7 +379,7 @@ make_array :: proc (arr_type_info: ast.Array_Type, mutable: bool) -> object.Arra
 //
 //}
 
-make_global :: proc(comp: ^Compiler, name: string, type: ast.Type_Specifier, mutable: bool) {
+make_global :: proc(comp: ^Compiler, name: string, type: ^ast.Type_Specifier, mutable: bool) {
     type_tok: tokenizer.Token_Kind
     switch t in type.derived_type {
     case ^ast.Builtin_Type:
@@ -350,30 +389,34 @@ make_global :: proc(comp: ^Compiler, name: string, type: ast.Type_Specifier, mut
     case ^ast.Invalid_Type:
         type_tok = tokenizer.Token_Kind.Invalid
     }
-    sym := symbol.Symbol{ name, type_tok, mutable, comp.curr_scope, len(comp.globals) }
+    sym_type := symbol.make_symbol_type(type.start, type)
+    sym := symbol.Symbol{ name, sym_type, mutable, comp.curr_scope, len(comp.globals) }
     append(&comp.sym_table.symbols, sym)
 
     val: object.Global
-    #partial switch sym.type {
-    case .Type_Integer:
-        val.type = .Integer
-        val.value = i64(0)
-    case .Type_Unsigned_Integer:
-        val.type = .Unsigned_Integer
-        val.value = u64(0)
-    case .Type_Float:
-        val.type = .Float
-        val.value = 0.0
-    case .Type_Boolean:
-        val.type = .Boolean
-        val.value = false
-    case .Type_String:
-        val.type = .String
-        val.value = ""
-    case .Type_Rune:
-        val.type = .Rune
-        val.value = rune(0)
-    case .Array:
+    switch sym_type in sym.type {
+    case ^symbol.Simple_Symbol_Type:
+        #partial switch sym_type.type {
+        case .Type_Integer:
+            val.type = .Integer
+            val.value = i64(0)
+        case .Type_Unsigned_Integer:
+            val.type = .Unsigned_Integer
+            val.value = u64(0)
+        case .Type_Float:
+            val.type = .Float
+            val.value = 0.0
+        case .Type_Boolean:
+            val.type = .Boolean
+            val.value = false
+        case .Type_String:
+            val.type = .String
+            val.value = ""
+        case .Type_Rune:
+            val.type = .Rune
+            val.value = rune(0)
+        }
+    case ^symbol.Array_Symbol_Type:
         arr_type := type.derived_type.(^ast.Array_Type)
         val.type = .Array
         arr := make_array(arr_type^, sym.mutable)
@@ -383,30 +426,39 @@ make_global :: proc(comp: ^Compiler, name: string, type: ast.Type_Specifier, mut
     append(&comp.globals, val)
 }
 
-make_local :: proc(comp: ^Compiler, name: string, type: tokenizer.Token_Kind, mutable: bool) {
-    sym := symbol.Symbol{ name, type, mutable, comp.curr_scope, len(comp.locals) }
+make_local :: proc(comp: ^Compiler, name: string, type: ^ast.Type_Specifier, mutable: bool) {
+    sym_type := symbol.make_symbol_type(type.start, type)
+    sym := symbol.Symbol{ name, sym_type, mutable, comp.curr_scope, len(comp.locals) }
     append(&comp.sym_table.symbols, sym)
 
     val: object.Local
-    #partial switch sym.type {
-    case .Type_Integer:
-        val.type = .Integer
-        val.value = i64(0)
-    case .Type_Unsigned_Integer:
-        val.type = .Unsigned_Integer
-        val.value = u64(0)
-    case .Type_Float:
-        val.type = .Float
-        val.value = 0.0
-    case .Type_Boolean:
-        val.type = .Boolean
-        val.value = false
-    case .Type_String:
-        val.type = .String
-        val.value = ""
-    case .Type_Rune:
-        val.type = .Rune
-        val.value = rune(0)
+    switch sym_type in sym.type {
+    case ^symbol.Simple_Symbol_Type:
+        #partial switch sym_type.type {
+        case .Type_Integer:
+            val.type = .Integer
+            val.value = i64(0)
+        case .Type_Unsigned_Integer:
+            val.type = .Unsigned_Integer
+            val.value = u64(0)
+        case .Type_Float:
+            val.type = .Float
+            val.value = 0.0
+        case .Type_Boolean:
+            val.type = .Boolean
+            val.value = false
+        case .Type_String:
+            val.type = .String
+            val.value = ""
+        case .Type_Rune:
+            val.type = .Rune
+            val.value = rune(0)
+        }
+    case ^symbol.Array_Symbol_Type:
+        arr_type := type.derived_type.(^ast.Array_Type)
+        val.type = .Array
+        arr := make_array(arr_type^, sym.mutable)
+        val.value = arr
     }
     val.mutable = sym.mutable
     val.scope = comp.curr_scope
@@ -548,6 +600,20 @@ compile_expression :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, expr
             emit_byte(&curr_proc.chunk, byte(Op_Code.CALL))
             emit_bytes(&curr_proc.chunk, u16(sym.id))
         }
+
+    case ^ast.Array_Accessor:
+        scope, idx: int
+        _, scope, idx = resolve_variable(comp, e.ident)
+        get_op: Op_Code
+        if scope == 0 {
+            get_op = .GETG
+        } else {
+            get_op = .GETL
+        }
+        compile_expression(comp, curr_proc, e.index.derived_expression)
+        emit_byte(&curr_proc.chunk, byte(get_op))
+        emit_bytes(&curr_proc.chunk, u16(idx))
+        emit_byte(&curr_proc.chunk, byte(Op_Code.GETARR))
     }
 }
 
@@ -657,5 +723,5 @@ end_scope :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, is_proc_scope
     comp.curr_scope -= 1
     end_table := comp.sym_table
     comp.sym_table = comp.sym_table.outer
-    symbol.destroy(end_table)
+    symbol.table_destroy(end_table)
 }

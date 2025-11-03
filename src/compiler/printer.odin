@@ -120,6 +120,10 @@ print_procedure :: proc(procedure: procs.Procedure) {
             quant : u16 = (u16(hi) << 8) | u16(lo)
             fmt.printfln("%8X    %-8s %- 8d", i, "BLDARR", quant)
             i += 2
+        case u8(Op_Code.GETARR):
+            fmt.printfln("%8X    %-8s", i, "GETARR")
+        case u8(Op_Code.SETARR):
+            fmt.printfln("%8X    %-8s", i, "SETARR")
         case u8(Op_Code.RET):
             fmt.printfln("%8X    %-8s", i, "RET")
         }
