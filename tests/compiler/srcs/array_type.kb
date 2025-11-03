@@ -1,7 +1,7 @@
-//var my_arr: array[10]int;
+var my_arr: array[10]int;
 //var my_arr: array[3]float;
 //var my_arr: array[7]uint;
-var my_arr: array[3]int = { 1, 2, 3 };
+//var my_arr: array[3]int = { 1, 2, 3 };
 
-var second := my_arr[1];
-//my_arr[2] = 7;
+//var second := my_arr[1];
+my_arr[1] = 7;

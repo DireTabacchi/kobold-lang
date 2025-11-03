@@ -69,13 +69,13 @@ Return_Statement :: struct {
 
 Assignment_Statement :: struct {
     using node: Statement,
-    name: string,
+    ident: ^Expression,
     value: ^Expression,
 }
 
 Assignment_Operation_Statement :: struct {
     using node: Statement,
-    name: string,
+    ident: ^Expression,
     op: tokenizer.Token_Kind,
     value: ^Expression,
 }
@@ -270,9 +270,11 @@ statement_destroy :: proc(stmt: Any_Statement) {
         type_specifier_destroy(s.type.derived_type)
         free(s)
     case ^Assignment_Statement:
+        expression_destroy(s.ident.derived_expression)
         expression_destroy(s.value.derived_expression)
         free(s)
     case ^Assignment_Operation_Statement:
+        expression_destroy(s.ident.derived_expression)
         expression_destroy(s.value.derived_expression)
         free(s)
     case ^Expression_Statement:

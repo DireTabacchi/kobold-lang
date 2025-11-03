@@ -115,7 +115,9 @@ print_stmt :: proc(ap: ^AST_Printer, stmt: Any_Statement) {
         ap.indent_lvl += 1
         defer ap.indent_lvl -= 1
         write_tabs(ap)
-        fmt.sbprintfln(&ap.builder, "\u251Cname: %s", st.name)
+        strings.write_string(&ap.builder, "\u251Cident:\n")
+        print_expr(ap, st.ident.derived_expression)
+        //fmt.sbprintfln(&ap.builder, "\u251Cname: %s", st.name)
         write_tabs(ap)
         strings.write_string(&ap.builder, "\u2514value:\n")
         print_expr(ap, st.value.derived_expression)
@@ -125,7 +127,9 @@ print_stmt :: proc(ap: ^AST_Printer, stmt: Any_Statement) {
         ap.indent_lvl += 1
         defer ap.indent_lvl -= 1
         write_tabs(ap)
-        fmt.sbprintfln(&ap.builder, "\u251Cname: %s", st.name)
+        //fmt.sbprintfln(&ap.builder, "\u251Cident: %s", st.name)
+        strings.write_string(&ap.builder, "\u251Cident:\n")
+        print_expr(ap, st.ident.derived_expression)
         write_tabs(ap)
         fmt.sbprintfln(&ap.builder, "\u251Cop: %s", tokenizer.token_list[st.op])
         write_tabs(ap)

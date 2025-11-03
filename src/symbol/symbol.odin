@@ -60,6 +60,20 @@ make_symbol_type :: proc{
     make_parser_symbol_type,
 }
 
+symbol_destroy :: proc(sym: ^Symbol) {
+    symbol_type_destroy(&sym.type)
+}
+
+symbol_type_destroy :: proc(sym_type: ^Symbol_Type) {
+    switch t in sym_type {
+    case ^Simple_Symbol_Type:
+        free(t)
+    case ^Array_Symbol_Type:
+        symbol_type_destroy(&t.type)
+        free(t)
+    }
+}
+
 type_specifier_from_symbol_type :: proc(st: Symbol_Type) -> ^ast.Type_Specifier {
     ZERO_POS :: tokenizer.Pos { 0, 0, 0 }
     switch sym_type in st {
@@ -93,7 +107,10 @@ new :: proc{
     new_with_outer,
 }
 
-destroy :: proc(st: ^Symbol_Table) {
+table_destroy :: proc(st: ^Symbol_Table) {
+    for &sym in st.symbols {
+        symbol_destroy(&sym)
+    }
     delete(st.symbols)
     free(st)
 }

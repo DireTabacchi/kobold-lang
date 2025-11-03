@@ -59,7 +59,7 @@ parser_destroy :: proc(p: ^Parser) {
     free(p.prog)
     delete(p.loop_scopes)
     delete(p.proc_table)
-    symbol.destroy(p.sym_table)
+    symbol.table_destroy(p.sym_table)
 }
 
 parse :: proc(p: ^Parser) {
@@ -98,33 +98,17 @@ parse_statement :: proc(p: ^Parser) -> ^ast.Statement {
         for {
             #partial switch p.curr_tok.type {
             case .Assign..=.Assign_Mod_Floor:
-                fmt.println("found Assign Statement")
                 reset_to_token(p, start_idx)
                 return parse_assign_statement(p, true)
             case .Semicolon:
-                fmt.println("found Semicolon")
                 reset_to_token(p, start_idx)
                 return parse_expr_statement(p)
             case .EOF:
-                fmt.println("found EOF")
                 error_msg(p, start_pos, "Unterminated statement")
                 return nil
             }
             advance_token(p)
         }
-        //if p.curr_tok.type == .Assign {
-        //    reset_to_token(p, start_idx)
-        //    assign_stmt := parse_assign_statement(p, true)
-        //    return assign_stmt
-        //} else if p.curr_tok.type == .Semicolon {
-        //    reset_to_token(p, start_idx)
-        //    expr_stmt := parse_expr_statement(p)
-        //    if expr_stmt == nil {
-        //        error(p, p.curr_tok.pos, "error parsing expression statement")
-        //        return nil
-        //    }
-        //    return expr_stmt
-        //}
     }
     return nil
 }
@@ -344,7 +328,23 @@ parse_block :: proc(p: ^Parser, do_scoping: bool) -> []^ast.Statement {
 
 parse_assign_statement :: proc(p: ^Parser, expect_semicolon: bool) -> ^ast.Statement {
     start_pos := p.curr_tok.pos
+    start_idx := p.curr_idx
     ident := parse_identifier(p)
+    //sym: symbol.Symbol
+    if id, ok := ident.derived_expression.(^ast.Identifier); ok {
+        sym, resolved := resolve_symbol(p, id.name)
+        if resolved {
+            switch sym_type in sym.type {
+            case ^symbol.Simple_Symbol_Type:
+            case ^symbol.Array_Symbol_Type:
+                if p.curr_tok.type == .L_Bracket {
+                    reset_to_token(p, start_idx)
+                    free(ident)
+                    ident = parse_accessor(p)
+                }
+            }
+        }
+    }
     assign_tok := advance_token(p)
     expr := parse_expression(p)
     if expect_semicolon {
@@ -353,20 +353,25 @@ parse_assign_statement :: proc(p: ^Parser, expect_semicolon: bool) -> ^ast.State
     #partial switch assign_tok.type {
     case .Assign:
         as := ast.new(ast.Assignment_Statement, start_pos, end_pos(p.prev_tok))
-        if id, valid := ident.derived_expression.(^ast.Identifier); valid {
-            as.name = id.name
-            as.value = expr
-        }
-        free(ident)
+        //if id, valid := ident.derived_expression.(^ast.Identifier); valid {
+        //    as.name = id.name
+        //    as.value = expr
+        //}
+        as.ident = ident
+        as.value = expr
+        //free(ident)
         return as
     case .Assign_Add..=.Assign_Mod_Floor:
         aos := ast.new(ast.Assignment_Operation_Statement, start_pos, end_pos(p.prev_tok))
-        if id, valid := ident.derived_expression.(^ast.Identifier); valid {
-            aos.name = id.name
-            aos.op = assign_tok.type
-            aos.value = expr
-        }
-        free(ident)
+        //if id, valid := ident.derived_expression.(^ast.Identifier); valid {
+        //    aos.name = id.name
+        //    aos.op = assign_tok.type
+        //    aos.value = expr
+        //}
+        //free(ident)
+        aos.ident = ident
+        aos.op = assign_tok.type
+        aos.value = expr
         return aos
     }
     is := ast.new(ast.Invalid_Statement, start_pos, end_pos(p.prev_tok))
@@ -489,8 +494,8 @@ parse_var_decl :: proc(p: ^Parser) -> ^ast.Statement {
         case ^ast.Invalid_Type:
             vd.type = t
         }
-        //vd.type = expr_type
         vd.value = val
+        free(expr_type)
     } else if type == nil && invalid_val {
         errorf_msg(p, start_pos, "cannot deduce type of var `%s`", vd.name)
         vd.type = ast.new(ast.Invalid_Type, start_pos, end_pos(p.prev_tok))
@@ -526,22 +531,6 @@ parse_var_decl :: proc(p: ^Parser) -> ^ast.Statement {
     }
 
     var_sym_type := symbol.make_symbol_type(start_pos, vd.type)
-    //#partial switch t in vd.type.derived_type {
-    //case ^ast.Builtin_Type:
-    //    var_type = mem.new(symbol.Simple_Symbol_type)
-    //    var_type.type = t.type
-    //case ^ast.Array_Type:
-    //    var_type = mem.new(symbol.Array_Symbol_Type)
-    //    var_type.type = mem.new(symbol.Simple_Symbol_Type)
-    //    #partial switch arr_type in t.type.derived_type {
-    //    case ^ast.Builtin_Type:
-    //        var_type.type.type = arr_type.type
-    //    case ^ast.Array_Type:
-    //        error_msg(p, start_pos, "multi-dimensional arrays are not yet supported")
-    //    }
-    //    var_type.length = t.length
-    //    //var_type = .Array
-    //}
 
     var_symbol := symbol.Symbol{ vd.name, var_sym_type, true, p.curr_scope, len(p.sym_table.symbols) }
     append(&p.sym_table.symbols, var_symbol)
@@ -991,7 +980,7 @@ decrement_scope :: proc(p: ^Parser) {
     p.curr_scope -= 1
     old_table := p.sym_table
     p.sym_table = p.sym_table.outer
-    symbol.destroy(old_table)
+    symbol.table_destroy(old_table)
 }
 
 resolve_symbol :: proc(p: ^Parser, sym_name: string) -> (sym: symbol.Symbol, resolved: bool) {
