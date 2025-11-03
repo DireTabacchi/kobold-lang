@@ -1,8 +1,12 @@
 package parser
 
+// TODO: Better way to handle array types and subtypes
+//      IDEA: Start implementing checker and resolver?
 // TODO: More robust error handling
+//      IDEA: Start implementing checker and resolver!
 
 import "core:fmt"
+import "core:mem"
 import "core:strconv"
 
 import "kobold:ast"
@@ -76,7 +80,7 @@ parse_statement :: proc(p: ^Parser) -> ^ast.Statement {
     case .Var, .Const, .Proc:
         decl_stmt := parse_decl_statement(p)
         if decl_stmt == nil {
-            error(p, p.curr_tok.pos, "error parsing declaration statement")
+            error_msg(p, p.curr_tok.pos, "error parsing declaration statement")
             return nil
         }
         return decl_stmt
@@ -94,13 +98,16 @@ parse_statement :: proc(p: ^Parser) -> ^ast.Statement {
         for {
             #partial switch p.curr_tok.type {
             case .Assign..=.Assign_Mod_Floor:
+                fmt.println("found Assign Statement")
                 reset_to_token(p, start_idx)
                 return parse_assign_statement(p, true)
             case .Semicolon:
+                fmt.println("found Semicolon")
                 reset_to_token(p, start_idx)
                 return parse_expr_statement(p)
             case .EOF:
-                error(p, start_pos, "Unterminated statement")
+                fmt.println("found EOF")
+                error_msg(p, start_pos, "Unterminated statement")
                 return nil
             }
             advance_token(p)
@@ -153,7 +160,9 @@ parse_proc_decl :: proc(p: ^Parser) -> ^ast.Statement {
         return pd
     }
 
-    proc_symbol := symbol.Symbol{ pd.name, .Proc, false, p.curr_scope, len(p.proc_table) }
+    proc_sym_type, _ := mem.new(symbol.Simple_Symbol_Type)
+    proc_sym_type.type = tokenizer.Token_Kind.Proc
+    proc_symbol := symbol.Symbol{ pd.name, proc_sym_type, false, p.curr_scope, len(p.proc_table) }
     append(&p.sym_table.symbols, proc_symbol)
 
     proc_info := Proc_Info { pd.name, byte(len(pd.params)), pd.return_type, p.curr_scope, len(p.proc_table) }
@@ -175,11 +184,12 @@ parse_parameter_list :: proc(p: ^Parser) -> []^ast.Statement {
         pd.type = type_spec
         append(&pl, pd)
 
-        param_type, exists := pd.type.derived_type.(^ast.Builtin_Type)
-        param_symbol := symbol.Symbol{ pd.name, .Invalid, false, p.curr_scope, len(p.sym_table.symbols)  }
-        if exists {
-            param_symbol.type = param_type.type
-        }
+        param_symbol: symbol.Symbol
+        param_symbol.name = pd.name
+        param_symbol.mutable = false
+        param_symbol.scope = p.curr_scope
+        param_symbol.id = len(p.sym_table.symbols)
+        param_symbol.type = symbol.make_symbol_type(start_pos, type_spec)
         append(&p.sym_table.symbols, param_symbol)
 
         next_tok := peek_token(p)
@@ -310,7 +320,7 @@ parse_else_if_statement :: proc(p: ^Parser) -> ^ast.Statement {
         es.consequent = consequent
         return es
     } else {
-        error(p, start_pos, "expected if clause or block")
+        error_msg(p, start_pos, "expected if clause or block")
         return nil
     }
 }
@@ -390,14 +400,14 @@ parse_const_decl :: proc(p: ^Parser) -> ^ast.Statement {
     cd.mutable = false
 
     if type == nil {
-        error(p, assign_tok.pos, "expected a type name")
+        error_msg(p, assign_tok.pos, "expected a type name")
         type = ast.new(ast.Invalid_Type, assign_tok.pos, assign_tok.pos)
         cd.type = type
     } else {
         cd.type = type
     }
     if val == nil {
-        error(p, assign_tok.pos, "expected an expression")
+        error_msg(p, assign_tok.pos, "expected an expression")
         val = ast.new(ast.Invalid_Expression, semi_tok.pos, semi_tok.pos)
         cd.value = val
     } else {
@@ -420,13 +430,9 @@ parse_const_decl :: proc(p: ^Parser) -> ^ast.Statement {
     }
     free(expr_type)
 
-    const_type: tokenizer.Token_Kind
-    #partial switch t in type.derived_type {
-    case ^ast.Builtin_Type:
-        const_type = t.type
-    }
+    const_sym_type := symbol.make_symbol_type(start_pos, type)
 
-    const_symbol := symbol.Symbol{ cd.name, const_type, false, p.curr_scope, len(p.sym_table.symbols) }
+    const_symbol := symbol.Symbol{ cd.name, const_sym_type, false, p.curr_scope, len(p.sym_table.symbols) }
     append(&p.sym_table.symbols, const_symbol)
 
     return cd
@@ -443,13 +449,17 @@ parse_var_decl :: proc(p: ^Parser) -> ^ast.Statement {
     if _, is_assign := check_token(p, .Assign); is_assign {
         advance_token(p)
 
-        #partial switch t in type.derived_type {
-        case ^ast.Array_Type:
-            expect_token(p, .L_Brace)
-            val = parse_expr_list(p)
-            expect_token(p, .R_Brace)
-        case ^ast.Builtin_Type:
+        if type == nil {
             val = parse_expression(p)
+        } else {
+            #partial switch t in type.derived_type {
+            case ^ast.Array_Type:
+                expect_token(p, .L_Brace)
+                val = parse_expr_list(p)
+                expect_token(p, .R_Brace)
+            case ^ast.Builtin_Type:
+                val = parse_expression(p)
+            }
         }
     }
 
@@ -471,7 +481,15 @@ parse_var_decl :: proc(p: ^Parser) -> ^ast.Statement {
         if _, invalid := expr_type.derived_type.(^ast.Invalid_Type); invalid {
             errorf_msg(p, start_pos, "cannot deduce type of var `%s`", vd.name)
         }
-        vd.type = expr_type
+        #partial switch t in expr_type.derived_type {
+        case ^ast.Builtin_Type:
+            vd.type = t
+        case ^ast.Array_Type:
+            vd.type = t.type
+        case ^ast.Invalid_Type:
+            vd.type = t
+        }
+        //vd.type = expr_type
         vd.value = val
     } else if type == nil && invalid_val {
         errorf_msg(p, start_pos, "cannot deduce type of var `%s`", vd.name)
@@ -507,15 +525,25 @@ parse_var_decl :: proc(p: ^Parser) -> ^ast.Statement {
         return vd
     }
 
-    var_type: tokenizer.Token_Kind
-    #partial switch t in vd.type.derived_type {
-    case ^ast.Builtin_Type:
-        var_type = t.type
-    case ^ast.Array_Type:
-        var_type = .Array
-    }
+    var_sym_type := symbol.make_symbol_type(start_pos, vd.type)
+    //#partial switch t in vd.type.derived_type {
+    //case ^ast.Builtin_Type:
+    //    var_type = mem.new(symbol.Simple_Symbol_type)
+    //    var_type.type = t.type
+    //case ^ast.Array_Type:
+    //    var_type = mem.new(symbol.Array_Symbol_Type)
+    //    var_type.type = mem.new(symbol.Simple_Symbol_Type)
+    //    #partial switch arr_type in t.type.derived_type {
+    //    case ^ast.Builtin_Type:
+    //        var_type.type.type = arr_type.type
+    //    case ^ast.Array_Type:
+    //        error_msg(p, start_pos, "multi-dimensional arrays are not yet supported")
+    //    }
+    //    var_type.length = t.length
+    //    //var_type = .Array
+    //}
 
-    var_symbol := symbol.Symbol{ vd.name, var_type, true, p.curr_scope, len(p.sym_table.symbols) }
+    var_symbol := symbol.Symbol{ vd.name, var_sym_type, true, p.curr_scope, len(p.sym_table.symbols) }
     append(&p.sym_table.symbols, var_symbol)
 
     return vd
@@ -569,21 +597,26 @@ expression_type :: proc(p: ^Parser, expr: ^ast.Expression) -> ^ast.Type_Specifie
         return ts
     case ^ast.Identifier:
         name := e.name
-        type: tokenizer.Token_Kind
+        //type: tokenizer.Token_Kind
         sym, exists := symbol.symbol_exists(name, p.sym_table^)
         if exists {
-            type = sym.type
+            ts := symbol.type_specifier_from_symbol_type(sym.type)
+            ts.start = expr.start
+            ts.end = expr.end
+            return ts
+            //#partial switch sym_type in sym.type {
+            //case ^symbol.Simple_Symbol_Type:
+            //    type = sym_type.type
+            //case ^symbol.Array_Symbol_Type:
+            //    return type_specifier_from_symbol
+            //}
         }
-        ts := ast.new(ast.Builtin_Type, expr.start, expr.end)
-        ts.type = type
-        return ts
+        it := ast.new(ast.Invalid_Type, expr.start, expr.end)
+        return it
     case ^ast.Proc_Call:
         name := e.name
-        type: tokenizer.Token_Kind
         sym, exists := symbol.symbol_exists(name, p.sym_table^)
-        if exists {
-            type = sym.type
-        } else {
+        if !exists {
             it := ast.new(ast.Invalid_Type, expr.start, expr.end)
             return it
         }
@@ -601,6 +634,16 @@ expression_type :: proc(p: ^Parser, expr: ^ast.Expression) -> ^ast.Type_Specifie
             ts.type = tokenizer.Token_Kind.Invalid
         }
         return ts
+    case ^ast.Array_Accessor:
+        ident := e.ident
+        //type := tokenizer.Token_Kind
+        sym, resolved := resolve_symbol(p, ident)
+        if resolved {
+            return symbol.type_specifier_from_symbol_type(sym.type)
+        } else {
+            it := ast.new(ast.Invalid_Type, expr.start, expr.end)
+            return it
+        }
     case:
         it := ast.new(ast.Invalid_Type, expr.start, expr.end)
         return it
@@ -646,7 +689,7 @@ parse_expr_statement :: proc(p: ^Parser) -> ^ast.Statement {
     expr := parse_expression(p)
 
     if expr == nil {
-        error(p, p.curr_tok.pos, "error parsing expression")
+        error_msg(p, p.curr_tok.pos, "error parsing expression")
         return nil
     }
 
@@ -661,7 +704,7 @@ parse_expression :: proc(p: ^Parser) -> ^ast.Expression {
     bin_expr := parse_binary_expr(p, 0)
 
     if bin_expr == nil {
-        error(p, p.curr_tok.pos, "error parsing binary expression")
+        error_msg(p, p.curr_tok.pos, "error parsing binary expression")
         return nil
     }
 
@@ -673,7 +716,7 @@ parse_binary_expr :: proc(p: ^Parser, curr_prec: int) -> ^ast.Expression {
     expr := parse_unary_expr(p)
 
     if expr == nil {
-        error(p, p.curr_tok.pos, "error parsing unary expression")
+        error_msg(p, p.curr_tok.pos, "error parsing unary expression")
         return nil
     }
 
@@ -738,6 +781,8 @@ parse_primary :: proc(p: ^Parser) -> ^ast.Expression {
             return parse_proc_call(p)
         case .Dot:
             return parse_ident_selector(p)
+        case .L_Bracket:
+            return parse_accessor(p)
         case:
             return parse_identifier(p)
         }
@@ -764,6 +809,33 @@ parse_ident_selector :: proc(p: ^Parser) -> ^ast.Expression {
     is.ident = ident.text
     is.field = field
     return is
+}
+
+parse_accessor :: proc(p: ^Parser) -> ^ast.Expression {
+    start_pos := p.curr_tok.pos
+
+    ident := advance_token(p)
+    expect_token(p, .L_Bracket)
+    index := parse_primary(p)
+    expect_token(p, .R_Bracket)
+
+    sym, resolved := resolve_symbol(p, ident.text)
+    if !resolved {
+        errorf_msg(p, ident.pos, "undeclared name `%s`", ident.text)
+    }
+
+    #partial switch sym_type in sym.type {
+    case ^symbol.Array_Symbol_Type:
+        arr_acc := ast.new(ast.Array_Accessor, start_pos, end_pos(p.prev_tok))
+        arr_acc.ident = ident.text
+        arr_acc.index = index
+        return arr_acc
+    case:
+        errorf_msg(p, ident.pos, "`%s` is not a type that can be index-accessed", ident.text)
+    }
+
+    it := ast.new(ast.Invalid_Expression, start_pos, end_pos(p.prev_tok))
+    return it
 }
 
 parse_proc_call :: proc(p: ^Parser) -> ^ast.Expression {
@@ -794,7 +866,7 @@ parse_expr_list :: proc(p: ^Parser) -> ^ast.Expression {
         pos := p.curr_tok.pos
         expr := parse_expression(p)
         if expr == nil {
-            error(p, pos, "expected expression")
+            error_msg(p, pos, "expected expression")
         }
         append(&expr_list, expr)
 
@@ -922,6 +994,11 @@ decrement_scope :: proc(p: ^Parser) {
     symbol.destroy(old_table)
 }
 
+resolve_symbol :: proc(p: ^Parser, sym_name: string) -> (sym: symbol.Symbol, resolved: bool) {
+    sym, resolved = symbol.symbol_exists(sym_name, p.sym_table^)
+    return
+}
+
 error_msg :: proc(p: ^Parser, pos: tokenizer.Pos, msg: string) {
     p.error_count += 1
     fmt.eprintfln("[%d:%d] %s", pos.line, pos.col, msg)
@@ -931,8 +1008,4 @@ errorf_msg :: proc(p: ^Parser, pos: tokenizer.Pos, fmt_msg: string, args: ..any)
     p.error_count += 1
     fmt.eprintf("[%d:%d] ", pos.line, pos.col)
     fmt.eprintfln(fmt_msg, ..args)
-}
-
-error :: proc {
-    error_msg,
 }

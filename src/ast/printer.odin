@@ -263,7 +263,8 @@ print_type_specifier :: proc(ap: ^AST_Printer, type: Any_Type) {
 
     switch t in type {
     case ^Builtin_Type:
-        fmt.sbprintfln(&ap.builder, "\u2514type: %s", t.type)
+        write_tabs(ap)
+        fmt.sbprintfln(&ap.builder, "\u2514%s", t.type)
     case ^Array_Type:
         write_tabs(ap)
         strings.write_string(&ap.builder, "\u2514Array:\n")
@@ -272,6 +273,7 @@ print_type_specifier :: proc(ap: ^AST_Printer, type: Any_Type) {
         write_tabs(ap)
         fmt.sbprintfln(&ap.builder, "\u251Clength: %d", t.length)
         write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514type:\n")
         print_type_specifier(ap, t.type.derived_type)
     case ^Invalid_Type:
         strings.write_string(&ap.builder, "\u2514type: INVALID\n")
@@ -360,6 +362,16 @@ print_expr :: proc(ap: ^AST_Printer, expr: Any_Expression) {
         write_tabs(ap)
         strings.write_string(&ap.builder, "\u2514field:\n")
         print_expr(ap, ex.field.derived_expression)
+    case ^Array_Accessor:
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514Array Accessor:\n")
+        ap.indent_lvl += 1
+        defer ap.indent_lvl -= 1
+        write_tabs(ap)
+        fmt.sbprintfln(&ap.builder, "\u251Cident: %s", ex.ident)
+        write_tabs(ap)
+        strings.write_string(&ap.builder, "\u2514index:\n")
+        print_expr(ap, ex.index.derived_expression)
     }
 }
 

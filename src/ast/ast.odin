@@ -159,6 +159,12 @@ Selector :: struct {
     field: ^Expression,
 }
 
+Array_Accessor :: struct {
+    using node: Expression,
+    ident: string,
+    index: ^Expression,
+}
+
 Builtin_Type :: struct {
     using node: Type_Specifier,
     type: tokenizer.Token_Kind,
@@ -199,6 +205,7 @@ Any_Expression :: union {
     ^Literal,
     ^Identifier,
     ^Selector,
+    ^Array_Accessor,
 }
 
 Any_Type :: union {
@@ -355,6 +362,9 @@ expression_destroy :: proc(expr: Any_Expression) {
         free(e)
     case ^Proc_Call:
         expression_destroy(e.args.derived_expression)
+        free(e)
+    case ^Array_Accessor:
+        expression_destroy(e.index.derived_expression)
         free(e)
     }
 }
