@@ -82,10 +82,10 @@ print_stmt :: proc(ap: ^AST_Printer, stmt: Any_Statement) {
         if st.return_type != nil {
             write_tabs(ap)
             strings.write_string(&ap.builder, "\u251Creturn_type:\n")
-            ap.indent_lvl += 1
-            write_tabs(ap)
+            //ap.indent_lvl += 1
+            //write_tabs(ap)
             print_type_specifier(ap, st.return_type.derived_type)
-            ap.indent_lvl -= 1
+            //ap.indent_lvl -= 1
 
         }
         write_tabs(ap)
@@ -107,7 +107,7 @@ print_stmt :: proc(ap: ^AST_Printer, stmt: Any_Statement) {
         defer ap.indent_lvl -= 1
         write_tabs(ap)
         fmt.sbprintfln(&ap.builder, "\u251Cname: %s", st.name)
-        write_tabs(ap)
+        //write_tabs(ap)
         print_type_specifier(ap, st.type.derived_type)
     case ^Assignment_Statement:
         write_tabs(ap)

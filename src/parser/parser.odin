@@ -312,7 +312,6 @@ parse_else_if_statement :: proc(p: ^Parser) -> ^ast.Statement {
 parse_block :: proc(p: ^Parser, do_scoping: bool) -> []^ast.Statement {
     if do_scoping {
         increment_scope(p)
-        defer decrement_scope(p)
     }
     block: [dynamic]^ast.Statement
 
@@ -322,6 +321,10 @@ parse_block :: proc(p: ^Parser, do_scoping: bool) -> []^ast.Statement {
     }
 
     expect_token(p, .R_Brace)
+
+    if do_scoping {
+        decrement_scope(p)
+    }
 
     return block[:]
 }
@@ -398,7 +401,16 @@ parse_const_decl :: proc(p: ^Parser) -> ^ast.Statement {
     expect_token(p, .Colon)
     type := parse_type_specifier(p)
     assign_tok := expect_token(p, .Assign)
-    val := parse_expression(p)
+    val: ^ast.Expression = nil
+    #partial switch p.curr_tok.type {
+    case .L_Brace:
+        expect_token(p, .L_Brace)
+        val = parse_expr_list(p)
+        expect_token(p, .R_Brace)
+    case:
+        val = parse_expression(p)
+    }
+    //val := parse_expression(p)
     semi_tok := expect_token(p, .Semicolon)
     cd := ast.new(ast.Declarator, start_pos, end_pos(p.prev_tok))
     cd.name = ident.text
@@ -429,11 +441,24 @@ parse_const_decl :: proc(p: ^Parser) -> ^ast.Statement {
     }
 
     expr_type := expression_type(p, val)
-    type_type, _ := type.derived_type.(^ast.Builtin_Type)
-    if val_type := expr_type.derived_type.(^ast.Builtin_Type); val_type.type != type_type.type {
-        errorf_msg(p, start_pos, "cannot assign value of type `%s` to variable of type `%s`", val_type.type, type_type.type)
+    #partial switch t in type.derived_type {
+    case ^ast.Builtin_Type:
+        if val_type := expr_type.derived_type.(^ast.Builtin_Type); val_type.type != t.type {
+        errorf_msg(p, start_pos, "cannot assign value of type `%s` to variable of type `%s`", val_type.type, t.type)
+        }
+    case ^ast.Array_Type:
+        if val_type, is_arr := expr_type.derived_type.(^ast.Array_Type); is_arr {
+            arr_decl_type, arr_sub_builtin := t.type.derived_type.(^ast.Builtin_Type)
+            val_arr_type, val_sub_builtin := val_type.type.derived_type.(^ast.Builtin_Type)
+            if !arr_sub_builtin || !val_sub_builtin {
+                errorf_msg(p, start_pos, "multi-dimensional arrays and complex types not yet supported")
+            } else if (arr_sub_builtin && val_sub_builtin) && arr_decl_type.type != val_arr_type.type {
+                errorf_msg(p, start_pos, "cannot assign array literal value of type `%s` to array variable of type `$s`",
+                    val_arr_type.type, arr_decl_type.type)
+            }
+        }
     }
-    free(expr_type)
+    ast.type_specifier_destroy(expr_type.derived_type)
 
     const_sym_type := symbol.make_symbol_type(start_pos, type)
 
@@ -522,9 +547,10 @@ parse_var_decl :: proc(p: ^Parser) -> ^ast.Statement {
             }
         }
         vd.value = val
-        free(expr_type)
+        ast.type_specifier_destroy(expr_type.derived_type)
     }
 
+    fmt.printfln("symtable:\n%v\n", p.sym_table)
     if _, exists := symbol.symbol_exists(vd.name, p.sym_table^); exists {
         errorf_msg(p, vd.start, "name `%s` already used", vd.name)
         return vd
@@ -543,6 +569,7 @@ expression_type :: proc(p: ^Parser, expr: ^ast.Expression) -> ^ast.Type_Specifie
     case ^ast.Expression_List:
         ts := ast.new(ast.Array_Type, e.start, e.end)
         ts.length = len(e.list)
+        ts.type = expression_type(p, e.list[0])
         return ts
     case ^ast.Binary_Expression:
         #partial switch e.op.type {

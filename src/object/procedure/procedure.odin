@@ -2,6 +2,7 @@
 package procedure
 
 import "core:fmt"
+import "core:time"
 
 import "kobold:code"
 import "kobold:object"
@@ -55,6 +56,12 @@ builtin_procs := map[string]Builtin_Proc{
     "print" = Builtin_Proc{
         "print", 1, true, object.Value_Kind.Nil, builtin_print,
     },
+    "len" = Builtin_Proc{
+        "len", 1, false, object.Value_Kind.Integer, builtin_array_len,
+    },
+    "clock" = Builtin_Proc{
+        "clock", 0, false, object.Value_Kind.Integer, builtin_clock,
+    },
 }
 
 builtin_procs_destroy :: proc() {
@@ -95,4 +102,17 @@ builtin_println :: proc(args: ..object.Value) -> object.Value {
     fmt.print("\n")
 
     return object.Value{ object.Value_Kind.Nil, i64(0), false }
+}
+
+builtin_array_len :: proc(args: ..object.Value) -> object.Value {
+    arg := args[0]
+    arr := arg.value.(object.Array)
+    ret_val := object.Value{ object.Value_Kind.Integer, i64(arr.len), false }
+    return ret_val
+}
+
+builtin_clock :: proc(args: ..object.Value) -> object.Value {
+    now := time.now()
+    ret_val := object.Value{ object.Value_Kind.Integer, i64(time.time_to_unix_nano(now)), false }
+    return ret_val
 }

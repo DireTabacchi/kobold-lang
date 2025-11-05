@@ -44,6 +44,8 @@ compiler_init :: proc(comp: ^Compiler) {
 
     append(&comp.builtin_procs, &proc_lib.builtin_procs["println"])
     append(&comp.builtin_procs, &proc_lib.builtin_procs["print"])
+    append(&comp.builtin_procs, &proc_lib.builtin_procs["len"])
+    append(&comp.builtin_procs, &proc_lib.builtin_procs["clock"])
 }
 
 compiler_destroy :: proc(comp: ^Compiler) {
@@ -83,44 +85,29 @@ compile :: proc(comp: ^Compiler, prog: ^ast.Program) {
 compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt: ast.Any_Statement) {
     #partial switch st in stmt {
     case ^ast.Declarator:
+        set_op: Op_Code
+        idx: u16
         if comp.curr_scope == 0 {
-            idx : u16 = u16(len(comp.globals))
-            #partial switch type in st.type.derived_type {
-            case ^ast.Builtin_Type:
-                make_global(comp, st.name, type, st.mutable)
-            case ^ast.Array_Type:
-                make_global(comp, st.name, type, st.mutable)
-            }
-            if st.value != nil {
-                compile_expression(comp, curr_proc, st.value.derived_expression)
-                if arr_type, is_arr := st.type.derived_type.(^ast.Array_Type); is_arr {
-                    emit_byte(&curr_proc.chunk, byte(Op_Code.BLDARR))
-                    emit_bytes(&curr_proc.chunk, u16(arr_type.length))
-                }
-            } else {
-                //decl_type: tokenizer.Token_Kind
-                //switch type in st.type.derived_type {
-                //case ^ast.Builtin_Type:
-                //    decl_type = type.type
-                //case ^ast.Array_Type:
-                //    decl_type = tokenizer.Token_Kind.Array
-                //}
-                emit_constant(&curr_proc.chunk, st.type^)
-            }
-            emit_byte(&curr_proc.chunk, byte(Op_Code.SETG))
-            emit_bytes(&curr_proc.chunk, idx)
+            set_op = Op_Code.SETG
+            idx = u16(len(comp.globals))
+            make_global(comp, st.name, st.type, st.mutable)
         } else {
-            idx : u16 = u16(len(comp.locals))
+            set_op = Op_Code.SETL
+            idx = u16(len(comp.locals))
             make_local(comp, st.name, st.type, st.mutable)
-            if st.value != nil {
-                compile_expression(comp, curr_proc, st.value.derived_expression)
-            } else {
-                //decl_type := st.type.derived_type.(^ast.Builtin_Type).type
-                emit_constant(&curr_proc.chunk, st.type^)
-            }
-            emit_byte(&curr_proc.chunk, byte(Op_Code.SETL))
-            emit_bytes(&curr_proc.chunk, idx)
         }
+
+        if st.value != nil {
+            compile_expression(comp, curr_proc, st.value.derived_expression)
+            if arr_type, is_arr := st.type.derived_type.(^ast.Array_Type); is_arr {
+                emit_byte(&curr_proc.chunk, byte(Op_Code.BLDARR))
+                emit_bytes(&curr_proc.chunk, u16(arr_type.length))
+            }
+        } else {
+            emit_constant(&curr_proc.chunk, st.type^)
+        }
+        emit_byte(&curr_proc.chunk, byte(set_op))
+        emit_bytes(&curr_proc.chunk, idx)
 
     case ^ast.Assignment_Statement:
         scope, idx: int
@@ -300,11 +287,9 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt:
         if st.return_type == nil {
             new_proc.return_type = object.Value_Kind.Nil
         } else {
-            return_type, ok := st.return_type.derived_type.(^ast.Builtin_Type)
-            if !ok {
-                fmt.eprintfln("[%d:%d] unknown return type", st.start.line, st.start.col)
-                return
-            } else {
+            //return_type, ok := st.return_type.derived_type.(^ast.Builtin_Type)
+            #partial switch return_type in st.return_type.derived_type {
+            case ^ast.Builtin_Type:
                 #partial switch return_type.type {
                 case .Type_Integer:
                     new_proc.return_type = object.Value_Kind.Integer
@@ -319,6 +304,11 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt:
                 case .Type_String:
                     new_proc.return_type = object.Value_Kind.String
                 }
+            case ^ast.Array_Type:
+                new_proc.return_type = object.Value_Kind.Array
+            case:
+                fmt.eprintfln("[%d:%d] unknown return type", st.start.line, st.start.col)
+                return
             }
         }
         begin_scope(comp)
@@ -374,10 +364,6 @@ make_array :: proc (arr_type_info: ast.Array_Type, mutable: bool) -> object.Arra
 
     return arr
 }
-
-//make_array_data :: proc() -> []object.Value_Type {
-//
-//}
 
 make_global :: proc(comp: ^Compiler, name: string, type: ^ast.Type_Specifier, mutable: bool) {
     type_tok: tokenizer.Token_Kind
@@ -714,7 +700,11 @@ begin_scope :: proc(comp: ^Compiler) {
 end_scope :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, is_proc_scope: bool) {
     for i := len(comp.locals) - 1; i >= 0; i -= 1 {
         if len(comp.locals) > 0 && comp.locals[i].scope >= comp.curr_scope {
-            pop(&comp.locals)
+            val := pop(&comp.locals)
+            if val.type == object.Value_Kind.Array {
+                arr := val.value.(object.Array)
+                delete(arr.data)
+            }
             if !is_proc_scope {
                 emit_byte(&curr_proc.chunk, byte(Op_Code.POP))
             }
