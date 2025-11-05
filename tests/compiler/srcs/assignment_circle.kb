@@ -1,6 +1,8 @@
-const PI: float = 3.14159;
+const PI: float = 3.141592;
 var radius: float = 2.0;
 var area: float;
 
 area = PI * radius * radius;
-area;
+//area;
+println("area = PI * r^2");
+println(area, " = ", PI, " * ", radius, " ^2");

@@ -6,6 +6,10 @@ const width : int = 1920;
 var x := width;
 //x;
 var height := x / width + 40;
-height;
+//height;
 //var y := 3;
 //var z: int;
+
+println(width);
+println(x);
+println(height);

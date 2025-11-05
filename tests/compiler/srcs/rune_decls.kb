@@ -2,4 +2,8 @@ const initial: rune = 'K';
 var grandfather_lang : rune = 'C';
 var father_lang := 'O';
 var uninitialized: rune;
-father_lang;
+
+println(initial);
+println(grandfather_lang);
+println(father_lang);
+println(uninitialized);

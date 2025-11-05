@@ -4,4 +4,7 @@ var not_tested := false;
 
 var off := not_tested;
 
-tested;
+println(on);
+println(tested);
+println(not_tested);
+println(off);

@@ -1,3 +1,6 @@
 const height : float = 180.34;
 var age := 21.3;
 //var type_error : float = 3; // error
+
+println(height);
+println(age);

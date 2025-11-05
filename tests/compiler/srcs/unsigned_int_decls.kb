@@ -2,4 +2,8 @@ const uuid: uint = 64823764u;
 var counter: uint = 12u;
 var test_num := 13u;
 var test_decl: uint;
-test_num;
+
+println(uuid);
+println(counter);
+println(test_num);
+println(test_decl);

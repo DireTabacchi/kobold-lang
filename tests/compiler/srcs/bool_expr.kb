@@ -7,4 +7,13 @@ var or_test := leq_test || geq_test;        // eval to true
 var eq_test := leq_test == and_test;        // eval to true
 var neq_test := 123 != 234;                 // eval to true
 var fneq_test := 12.3 != 12.3;              // eval to false
-fneq_test;
+
+println(greater_test);
+println(lesser_test);
+println(leq_test);
+println(geq_test);
+println(and_test);
+println(or_test);
+println(eq_test);
+println(neq_test);
+println(fneq_test);

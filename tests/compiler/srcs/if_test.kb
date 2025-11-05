@@ -17,7 +17,8 @@ if alfa >= 5 {
     var charlie := 79;
     bravo = (charlie - alfa) + bravo * alfa;
 }
-bravo;
+
+println(bravo);
 //if 3 < 4 {
 //    alfa = 5;
 //    var bravo := 7;

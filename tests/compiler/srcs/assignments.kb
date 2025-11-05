@@ -3,4 +3,5 @@ var b := 34;
 var c: int;
 
 c = a + b + 45;
-c;
+
+println("a: ", a, ", b: ", b, ", c: ", c);

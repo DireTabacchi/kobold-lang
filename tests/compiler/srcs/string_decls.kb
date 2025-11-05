@@ -2,3 +2,6 @@ const version : string = "0.0.29";
 var cat_breed := "Blue Russian";
 var empty: string;
 
+println(version);
+println(cat_breed);
+println(empty);

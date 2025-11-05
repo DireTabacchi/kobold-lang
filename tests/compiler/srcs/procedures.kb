@@ -24,7 +24,8 @@ proc double(a: int) -> int {
 }
 
 var b_num := double(a_num);
-b_num;
+println(a_num);
+println(b_num);
 //var b_num := 6;
 
 // TODO: add keyword for reference passing?

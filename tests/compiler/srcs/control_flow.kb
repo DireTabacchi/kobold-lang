@@ -31,4 +31,4 @@ for {
     }
 }
 
-alfa;
+println(alfa);
