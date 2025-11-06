@@ -3,6 +3,8 @@
 Kobold is a scripting language. It is a strongly-typed, procedural language that is currently in the very early stages
 of development.
 
+Version: **0.0.44**
+
 ## Building
 
 ### Prerequisites
@@ -46,7 +48,11 @@ false       // Boolean value false
 
 ## Types
 
-Kobold is a strongly-typed language. The following types can be used in variable declarations.
+Kobold is a strongly-typed language.
+
+### Base Types
+
+The following types can be used in variable declarations.
 
 ```
 int     // 64-bit signed integer
@@ -55,6 +61,32 @@ float   // 64-bit floating point number
 bool    // Boolean
 rune    // A rune (utf-8 encoded character)
 string  // A string (of utf-8 encoded characters)
+```
+
+### Container Types
+
+Kobold currently has one container type.
+
+#### Array
+
+The `array` in Kobold is a compile-time known homogeneous (same type) list of values. An `array` declaration must be
+annotated for the type. Array declarations may be optionally initialized, otherwise they will be initialized with the
+number of values in the `array` to zero values. An `array` type is annotated with the ``array`` keyword, followed by the size
+in brackets (`[]`), followed by the type it will hold. An `array` can be initialized by surrounding the values it
+contains in braces (`{}`);
+
+```
+var vals: array[3]int;        // An array of three floats, all initialized to `0`: `{ 0, 0, 0 }`
+var constants: array[3]float = { 3.14159265, 1.61803398, 6.02214076 };
+```
+
+When passed to a procedure as an argument, `array`s will be copied.
+
+The builtin procedure `len` will return the number of elements in the `array`, or, in other words, the number of
+elements the `array` can hold.
+
+```
+var arr_len := len(vals); // arr_len == 3
 ```
 
 ### Zero Values of Types
@@ -69,6 +101,8 @@ false   // bool (Boolean)
 'NUL'   // rune (0x0000, utf-8 value 0, ASCII value 0)
 ""      // string (Empty string)
 ```
+
+The zero value of the `array` is the number of elements the `array` holds set to the zero value of their type.
 
 ## Operators
 
@@ -311,6 +345,52 @@ var bar := 42;
 foo(bar);
 ```
 
+### Builtin Procedures
+
+Kobold currently has **four** builtin procedures.
+
+#### `print(..args)`
+
+`print` takes a variable number of arguments and outputs them to `stdout`. No spaces are inserted between arguments.
+Currently `\n` (newline) is the only accepted escape sequence in strings.
+
+```
+print("Hello world!");              // outputs `Hello world!` to `stdout`. No newline.
+print("Hello world ", 2, "!\n");    // outputs `Hello world 2!` to `stdout`. Newline is printed (escape sequence)
+```
+
+#### `println(..args)`
+
+`println` takes a variable number of arguments and outputs them to `stdout` with an added newline. No spaces are
+inserted between arguments. Currently `\n` (newline) is the only accepted escape sequence in strings.
+
+```
+println("Hello world!");    // outputs `Hello world!` to `stdout`. Newline added at end.
+println("results: { ", results[0], ", ", results[1], ", ", results[2], " }");
+```
+
+#### `len(arr: array) -> int`
+
+`len` returns the length of the array passed in. The returned value is of type `int`.
+
+```
+const my_arr: array[3]float = { 3.14159265, 1.61803398, 6.02214076 };
+var my_arr_len := len(my_arr);  // my_arr_len == 3
+```
+
+#### `clock() -> int`
+
+`clock` returns the current time in nanoseconds. The returned value is of type `int`.
+
+```
+var start: int;
+var end: int;
+start = clock();
+// Do some calculations...
+end = clock();
+var delta := end - start;
+println("Calculations took ", delta, " nanoseconds");
+```
 
 # Roadmap
 
@@ -343,7 +423,7 @@ The following is a list of items that are planned for the language before hittin
     - [ ] Multiple Returns
     - [ ] Recursion Support
 - [ ] Collections
-    - [ ] `array`
+    - [X] `array`
     - [ ] `map`
     - [ ] `set`
     - [ ] `vector`
