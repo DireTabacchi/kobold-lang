@@ -59,7 +59,7 @@ main :: proc() {
 
     if num_args == 2 && os.args[1] == "version" {
         fmt.printfln("Kobold %s", KOBOLD_VERSION)
-        fmt.printfln("Compiled with Odin version: %s", COMPILER_VERSION)
+        fmt.printfln("Built with Odin %s", COMPILER_VERSION)
         os.exit(0)
     } else if num_args == 2 && os.args[1] == "help" {
         print_short_help()
