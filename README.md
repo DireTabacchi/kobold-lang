@@ -28,6 +28,14 @@ Currently, all test scripts in the `tests/compiler/srcs` directory are guarentee
 $ ./kobo tests/compiler/srcs/<name of test script>
 ```
 
+## `kobo`
+
+`kobo` is the main tool that will help you interact with the Kobold language. Other than script names, it will currently
+accept the following commands:
+
+- `version`: print the current version of Kobold and the version of Odin it was built with.
+- `help`: print a help text.
+
 # Overview
 
 ## Literals

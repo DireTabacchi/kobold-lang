@@ -14,6 +14,7 @@ import "kobold:object/procedure"
 import "kobold:vm"
 
 KOBOLD_VERSION :: "0.0.44"
+COMPILER_VERSION :: ODIN_VERSION
 
 main :: proc() {
     when ODIN_DEBUG {   // From Odin Overview
@@ -44,9 +45,25 @@ main :: proc() {
 
     args := os.args
 
-    if len(args) < 2 {
-        fmt.eprintln("Not enough arguments.")
+    num_args := len(args)
+
+    if num_args < 2 {
+        fmt.eprintln("Error: not enough arguments.\n")
+        print_short_help()
         os.exit(1)
+    } else if num_args > 2 {
+        fmt.eprintln("Error: Too many arguments.\n")
+        print_short_help()
+        os.exit(1)
+    }
+
+    if num_args == 2 && os.args[1] == "version" {
+        fmt.printfln("Kobold %s", KOBOLD_VERSION)
+        fmt.printfln("Compiled with Odin version: %s", COMPILER_VERSION)
+        os.exit(0)
+    } else if num_args == 2 && os.args[1] == "help" {
+        print_short_help()
+        os.exit(0)
     }
 
     tok : tokenizer.Tokenizer
@@ -103,4 +120,9 @@ main :: proc() {
     //fmt.printfln("Globals:\n%v", virtual_machine.globals)
     //fmt.printfln("stack:\n%v", virtual_machine.stack[:virtual_machine.frames[virtual_machine.frame_count-1].sp])
     vm.vm_destroy(&virtual_machine)
+}
+
+print_short_help :: proc() {
+    fmt.printfln("USAGE: %s script_name.kb\n", os.args[0])
+    fmt.printfln("Use `%s` help for more information.", os.args[0])
 }
