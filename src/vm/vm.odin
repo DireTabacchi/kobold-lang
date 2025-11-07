@@ -26,12 +26,13 @@ Virtual_Machine :: struct {
     frames: [FRAME_MAX]^Call_Frame,
     frame_count: int,
 
-    stack: []object.Object,
-    globals: [dynamic]object.Global,
+    stack: []^object.Object,
+    globals: [dynamic]^object.Global,
     procs: []^proc_lib.Procedure,
     builtin_procs: [dynamic]^proc_lib.Builtin_Proc,
     local_count: int,
 
+    garbage: [dynamic]^object.Object,
 }
 
 vm_init :: proc(vm: ^Virtual_Machine, main_proc: ^proc_lib.Procedure, procs: []^proc_lib.Procedure) {
@@ -43,7 +44,7 @@ vm_init :: proc(vm: ^Virtual_Machine, main_proc: ^proc_lib.Procedure, procs: []^
     frame.sp = 0
     frame.ip = 0
     vm.local_count = 0
-    vm.stack = make([]object.Object, STACK_MAX)
+    vm.stack = make([]^object.Object, STACK_MAX)
     vm.procs = procs
 
     append(&vm.builtin_procs, &proc_lib.builtin_procs["println"])
@@ -53,6 +54,11 @@ vm_init :: proc(vm: ^Virtual_Machine, main_proc: ^proc_lib.Procedure, procs: []^
 }
 
 vm_destroy :: proc(vm: ^Virtual_Machine) {
+    fmt.printfln("Total garbage objects collected: %d", len(vm.garbage))
+    for gar in vm.garbage {
+        fmt.printfln("Object: %v <refs: %d>", gar.value, gar.ref_count)
+    }
+
     for g in vm.globals {
         if g.type == object.Value_Kind.Array {
             arr := g.value.(object.Array)
@@ -74,17 +80,23 @@ vm_destroy :: proc(vm: ^Virtual_Machine) {
         free(vm.frames[f])
     }
     delete(vm.stack)
+    delete(vm.garbage)
 }
 
-stack_pop :: proc(vm: ^Virtual_Machine) -> object.Object {
+stack_pop :: proc(vm: ^Virtual_Machine) -> ^object.Object {
     frame := vm.frames[vm.frame_count-1]
     val := vm.stack[frame.sp-1]
+    fmt.printfln("issuing stack pop on a val %v <refs: %d>", val.value, val.ref_count)
+    val.ref_count -= 1
     frame.sp -= 1
+    append(&vm.garbage, val)
     return val
 }
 
-stack_push :: proc(vm: ^Virtual_Machine, val: object.Object) {
+stack_push :: proc(vm: ^Virtual_Machine, val: ^object.Object) {
     frame := vm.frames[vm.frame_count-1]
+    val := val
+    val.ref_count += 1
     vm.stack[frame.sp] = val
     frame.sp += 1
 }
@@ -93,22 +105,28 @@ run :: proc(vm: ^Virtual_Machine) {
     for {
         frame := vm.frames[vm.frame_count-1]
         op_bc := frame.procedure.chunk.code[frame.ip]
+        last_ip := frame.ip
+        //last_proc_name := frame.procedure.name
+        fmt.printfln("Executing line %X of %s:", last_ip, frame.procedure.name)
         switch op_bc {
         case byte(Op_Code.PUSH):
             val := frame.procedure.chunk.constants[read_u16(vm)]
-            push_val: object.Object
-            if arr_val, is_arr := val.value.(object.Array); is_arr {
-                push_arr: object.Array
-                push_arr.len = arr_val.len
-                push_arr.type = arr_val.type
-                push_arr.data = make([]object.Object, arr_val.len)
-                copy(push_arr.data, arr_val.data)
-                push_val.type = object.Value_Kind.Array
-                push_val.mutable = false
-                push_val.value = push_arr
-            } else {
-                push_val = val
-            }
+            //push_val := new(object.Object)
+            //if arr_val, is_arr := val.value.(object.Array); is_arr {
+            //    push_val = new_clone(val)
+            //    //push_arr: object.Array
+            //    //push_arr.len = arr_val.len
+            //    //push_arr.type = arr_val.type
+            //    //push_arr.data = make([]object.Object, arr_val.len)
+            //    //copy(push_arr.data, arr_val.data)
+            //    //push_val.type = object.Value_Kind.Array
+            //    //push_val.mutable = false
+            //    //push_val.value = push_arr
+            //} else {
+            //    push_val = new_clone(val)
+            //}
+            push_val := new_clone(val)
+            //push_val.ref_count += 1
             stack_push(vm, push_val)
             //print_stack(vm)
         case byte(Op_Code.POP):
@@ -156,18 +174,24 @@ run :: proc(vm: ^Virtual_Machine) {
         case byte(Op_Code.RET):
             if frame.procedure.type == proc_lib.Proc_Type.Proc {
                 exec_return(vm)
+                //fmt.printfln("Stack after executing line %X of %s:", last_ip, last_proc_name)
+                //print_stack(vm)
                 continue
             } else {
+                //fmt.printfln("globals after run:\n%v", vm.globals)
                 return
             }
         }
         frame.ip += 1
+        //fmt.printfln("Stack after executing line %X of %s:", last_ip, frame.procedure.name)
+        //print_stack(vm)
     }
+
 }
 
 build_array :: proc(vm: ^Virtual_Machine) {
     size := read_u16(vm)
-    val: object.Object
+    val := new(object.Object)
     val.type = object.Value_Kind.Array
     arr: object.Array
     arr.data = make([]object.Object, size)
@@ -177,7 +201,8 @@ build_array :: proc(vm: ^Virtual_Machine) {
     stack_push(vm,val_type)
     for i : u16 = 0; i < size; i += 1 {
         elem_val := stack_pop(vm)
-        arr.data[i] = elem_val
+        elem_val.ref_count += 1
+        arr.data[i] = elem_val^
     }
     val.value = arr
     stack_push(vm, val)
@@ -189,7 +214,7 @@ set_array_elem :: proc(vm: ^Virtual_Machine) {
     val := stack_pop(vm)
     arr_val := arr.value.(object.Array)
     arr_idx_val := arr_idx.value.(i64)
-    arr_val.data[arr_idx_val] = val
+    arr_val.data[arr_idx_val] = val^
     arr.value = arr_val
     stack_push(vm, arr)
 }
@@ -199,9 +224,10 @@ get_array_elem :: proc(vm: ^Virtual_Machine) {
     arr_idx := stack_pop(vm)
     arr_val := arr.value.(object.Array)
     arr_idx_val := arr_idx.value.(i64)
-    val := arr_val.data[arr_idx_val]
+    //val := new_clone(arr_val.data[arr_idx_val])
+    val := &arr_val.data[arr_idx_val]
     stack_push(vm, val)
-    delete(arr_val.data)
+    //delete(arr_val.data)
 }
 
 exec_call :: proc(vm: ^Virtual_Machine) {
@@ -230,66 +256,72 @@ exec_builtin_call :: proc(vm: ^Virtual_Machine) {
 
     for i := 0; i < int(arg_count); i += 1 {
         val := stack_pop(vm)
-        args[i] = val
+        fmt.printfln("[exec_builtin_call] popping value:\n[exec_builtin_call] %v", val)
+        args[i] = val^
     }
     //print_stack(vm)
     ret_val := callee.exec(..args)
     for arg in args {
         if arg.type == object.Value_Kind.Array {
-            arg_arr := arg.value.(object.Array)
-            delete(arg_arr.data)
+            //arg_arr := arg.value.(object.Array)
+            //delete(arg_arr.data)
         }
     }
     if callee.return_type != object.Value_Kind.Nil {
-        stack_push(vm, ret_val)
+        stack_push(vm, new_clone(ret_val))
         //print_stack(vm)
     }
 }
 
 exec_return :: proc(vm: ^Virtual_Machine) {
     frame := vm.frames[vm.frame_count-1]
-    ret_val: object.Object
+    ret_val: ^object.Object
     if frame.procedure.return_type != object.Value_Kind.Nil {
         val := stack_pop(vm)
         //print_stack(vm)
         if val.type == object.Value_Kind.Array {
-            arr := val.value.(object.Array)
-            ret_arr: object.Array
-            ret_arr.len = arr.len
-            ret_arr.type = arr.type
-            ret_arr.data = make([]object.Object, arr.len)
-            copy(ret_arr.data, arr.data)
-            ret_val.type = object.Value_Kind.Array
-            ret_val.value = ret_arr
-            delete(arr.data)
+            ret_val = val
+            //arr := val.value.(object.Array)
+            //ret_arr: object.Array
+            //ret_arr.len = arr.len
+            //ret_arr.type = arr.type
+            //ret_arr.data = make([]object.Object, arr.len)
+            //copy(ret_arr.data, arr.data)
+            //ret_val.type = object.Value_Kind.Array
+            //ret_val.value = ret_arr
+            //delete(arr.data)
         } else {
             ret_val = val
         }
-        vm.frame_count -= 1
-        caller_frame := vm.frames[vm.frame_count-1]
+        caller_frame := vm.frames[vm.frame_count-2]
         caller_frame.sp = frame.bp
-        for i := frame.bp; i < frame.sp; i += 1 {
-            stack_val := vm.stack[i]
+        //for i := frame.bp; i < frame.sp; i += 1 {
+        for frame.sp > frame.bp {
+            stack_val := stack_pop(vm)
+            //stack_val := vm.stack[i]
             if stack_val.type == object.Value_Kind.Array {
                 if stack_val.value.(object.Array).data != nil {
-                    delete(stack_val.value.(object.Array).data)
+                    //delete(stack_val.value.(object.Array).data)
                 }
             }
         }
+        vm.frame_count -= 1
         stack_push(vm, ret_val)
         //print_stack(vm)
     } else {
-        vm.frame_count -= 1
-        caller_frame := vm.frames[vm.frame_count-1]
+        caller_frame := vm.frames[vm.frame_count-2]
         caller_frame.sp = frame.bp
-        for i := frame.bp; i < frame.sp; i += 1 {
-            stack_val := vm.stack[i]
+        //for i := frame.bp; i < frame.sp; i += 1 {
+        for frame.sp > frame.bp {
+            stack_val := stack_pop(vm)
+            //stack_val := vm.stack[i]
             if stack_val.type == object.Value_Kind.Array {
                 if stack_val.value.(object.Array).data != nil {
-                    delete(stack_val.value.(object.Array).data)
+                    //delete(stack_val.value.(object.Array).data)
                 }
             }
         }
+        vm.frame_count -= 1
     }
     free(frame)
 }
@@ -297,13 +329,16 @@ exec_return :: proc(vm: ^Virtual_Machine) {
 set_global :: proc(vm: ^Virtual_Machine) {
     idx := read_u16(vm)
     val := stack_pop(vm)
+    val.ref_count += 1
     if idx == u16(len(vm.globals)) {
-        append(&vm.globals, object.Global{ val })
+        global := new(object.Global)
+        global.val = val^
+        append(&vm.globals, global)
     } else if idx < u16(len(vm.globals)) {
-        global_val := &vm.globals[idx]
-        if old_val, is_arr := global_val.value.(object.Array); is_arr {
-            delete(old_val.data)
-        }
+        global_val := vm.globals[idx]
+        //if old_val, is_arr := global_val.value.(object.Array); is_arr {
+        //    //delete(old_val.data)
+        //}
         global_val.value = val.value
     } else {
         fmt.eprintln("Runtime error: Unable to resolve global variable")
@@ -314,20 +349,23 @@ set_global :: proc(vm: ^Virtual_Machine) {
 get_global :: proc(vm: ^Virtual_Machine) {
     idx := read_u16(vm)
     global_val := vm.globals[idx]
-    push_val: object.Object
+    push_val: ^object.Object
     #partial switch val_subtype in global_val.value {
     case object.Array:
-        arr: object.Array
-        arr.len = val_subtype.len
-        arr.type = val_subtype.type
-        arr.data = make([]object.Object, val_subtype.len)
-        copy(arr.data, val_subtype.data)
-        push_val.type = object.Value_Kind.Array
-        push_val.mutable = false
-        push_val.value = arr
+        push_val = global_val
+        //arr: object.Array
+        //arr.len = val_subtype.len
+        //arr.type = val_subtype.type
+        //arr.data = make([]object.Object, val_subtype.len)
+        //copy(arr.data, val_subtype.data)
+        //push_val = new(object.Object)
+        //push_val.type = object.Value_Kind.Array
+        //push_val.mutable = false
+        //push_val.value = arr
     case:
         push_val = global_val
     }
+    //push_val.ref_count += 1
     stack_push(vm, push_val)
 }
 
@@ -339,9 +377,9 @@ set_local :: proc(vm: ^Virtual_Machine) {
         vm.local_count += 1
     } else if bp_offset < u16(frame.sp - 1) {
         val := stack_pop(vm)
-        if old_arr_val, is_arr := vm.stack[bp_offset].value.(object.Array); is_arr {
-            delete(old_arr_val.data)
-        }
+        //if old_arr_val, is_arr := vm.stack[bp_offset].value.(object.Array); is_arr {
+        //    delete(old_arr_val.data)
+        //}
         vm.stack[bp_offset] = val
     }
 }
@@ -351,20 +389,22 @@ get_local :: proc(vm: ^Virtual_Machine) {
     stack_offset := read_u16(vm)
     bp_offset := stack_offset + u16(frame.bp)
     local_val := vm.stack[bp_offset]
-    push_val: object.Object
+    push_val: ^object.Object
     #partial switch val_subtype in local_val.value {
     case object.Array:
-        arr: object.Array
-        arr.len = val_subtype.len
-        arr.type = val_subtype.type
-        arr.data = make([]object.Object, val_subtype.len)
-        copy(arr.data, val_subtype.data)
-        push_val.type = object.Value_Kind.Array
-        push_val.mutable = false
-        push_val.value = arr
+        push_val = local_val
+        //arr: object.Array
+        //arr.len = val_subtype.len
+        //arr.type = val_subtype.type
+        //arr.data = make([]object.Object, val_subtype.len)
+        //copy(arr.data, val_subtype.data)
+        //push_val.type = object.Value_Kind.Array
+        //push_val.mutable = false
+        //push_val.value = arr
     case:
         push_val = local_val
     }
+    //push_val.ref_count += 1
     stack_push(vm, push_val)
 }
 
@@ -385,11 +425,11 @@ read_byte :: proc(vm: ^Virtual_Machine) -> byte {
 }
 
 exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
+    res := new(object.Object)
     switch op {
     case byte(Op_Code.ADD):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Object
         #partial switch a.type {
         case .Integer:
             res.value = a.value.(i64) + b.value.(i64)
@@ -399,11 +439,10 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
             res.value = a.value.(f64) + b.value.(f64)
         }
         res.type = a.type
-        stack_push(vm, res)
+
     case byte(Op_Code.SUB):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Object
         #partial switch a.type {
         case .Integer:
             res.value = a.value.(i64) - b.value.(i64)
@@ -413,11 +452,10 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
             res.value = a.value.(f64) - b.value.(f64)
         }
         res.type = a.type
-        stack_push(vm, res)
+
     case byte(Op_Code.MULT):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Object
         #partial switch a.type {
         case .Integer:
             res.value = a.value.(i64) * b.value.(i64)
@@ -427,11 +465,10 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
             res.value = a.value.(f64) * b.value.(f64)
         }
         res.type = a.type
-        stack_push(vm, res)
+
     case byte(Op_Code.DIV):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Object
         #partial switch a.type {
         case .Integer:
             res.value = a.value.(i64) / b.value.(i64)
@@ -441,11 +478,10 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
             res.value = a.value.(f64) / b.value.(f64)
         }
         res.type = a.type
-        stack_push(vm, res)
+
     case byte(Op_Code.MOD):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Object
         #partial switch a.type {
         case .Integer:
             res.value = a.value.(i64) % b.value.(i64)
@@ -453,11 +489,10 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
             res.value = a.value.(u64) % b.value.(u64)
         }
         res.type = a.type
-        stack_push(vm, res)
+
     case byte(Op_Code.MODF):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Object
         #partial switch a.type {
         case .Integer:
             res.value = a.value.(i64) %% b.value.(i64)
@@ -465,11 +500,10 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
             res.value = a.value.(u64) %% b.value.(u64)
         }
         res.type = a.type
-        stack_push(vm, res)
+
     case byte(Op_Code.EQ):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Object
         #partial switch a.type {
         case .Integer:
             res.value = a.value.(i64) == b.value.(i64)
@@ -485,11 +519,10 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
             res.value = a.value.(bool) == b.value.(bool)
         }
         res.type = .Boolean
-        stack_push(vm, res)
+
     case byte(Op_Code.NEQ):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Object
         #partial switch a.type {
         case .Integer:
             res.value = a.value.(i64) != b.value.(i64)
@@ -505,11 +538,10 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
             res.value = a.value.(bool) != b.value.(bool)
         }
         res.type = .Boolean
-        stack_push(vm, res)
+
     case byte(Op_Code.LSSR):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Object
         #partial switch a.type {
         case .Integer:
             res.value = a.value.(i64) < b.value.(i64)
@@ -523,11 +555,10 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
             res.value = a.value.(rune) < b.value.(rune)
         }
         res.type = .Boolean
-        stack_push(vm, res)
+
     case byte(Op_Code.GRTR):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Object
         #partial switch a.type {
         case .Integer:
             res.value = a.value.(i64) > b.value.(i64)
@@ -541,11 +572,10 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
             res.value = a.value.(rune) > b.value.(rune)
         }
         res.type = .Boolean
-        stack_push(vm, res)
+
     case byte(Op_Code.LEQ):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Object
         #partial switch a.type {
         case .Integer:
             res.value = a.value.(i64) <= b.value.(i64)
@@ -559,11 +589,10 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
             res.value = a.value.(rune) <= b.value.(rune)
         }
         res.type = .Boolean
-        stack_push(vm, res)
+
     case byte(Op_Code.GEQ):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Object
         #partial switch a.type {
         case .Integer:
             res.value = a.value.(i64) >= b.value.(i64)
@@ -577,22 +606,22 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
             res.value = a.value.(rune) >= b.value.(rune)
         }
         res.type = .Boolean
-        stack_push(vm, res)
+
     case byte(Op_Code.LAND):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Object
         res.value = a.value.(bool) && b.value.(bool)
         res.type = .Boolean
-        stack_push(vm, res)
+
     case byte(Op_Code.LOR):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Object
         res.value = a.value.(bool) || b.value.(bool)
         res.type = .Boolean
-        stack_push(vm, res)
     }
+
+    //res.ref_count += 1
+    stack_push(vm, res)
 }
 
 exec_unary_op :: proc(vm: ^Virtual_Machine, op: byte) {
@@ -630,9 +659,9 @@ print_stack :: proc(vm: ^Virtual_Machine) {
         val := vm.stack[i]
         #partial switch val.type {
         case object.Value_Kind.Array:
-            fmt.printfln("[ Array %p ]", raw_data(val.value.(object.Array).data))
+            fmt.printfln("[ Array %p <refs: %d> ]", raw_data(val.value.(object.Array).data), val.ref_count)
         case:
-            fmt.printfln("[ %v ]", val.value)
+            fmt.printfln("[ %v <refs: %d> ]", val.value, val.ref_count)
         }
     }
     fmt.println("======= STACK BOT =======")

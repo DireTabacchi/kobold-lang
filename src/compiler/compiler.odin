@@ -522,27 +522,27 @@ compile_expression :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, expr
         #partial switch e.type {
         case .Integer:
             lit_val, _ := strconv.parse_i64(e.value)
-            val := object.Object{ .Integer, lit_val, false }
+            val := object.Object{ .Integer, lit_val, false, 0 }
             emit_constant(&curr_proc.chunk, val)
         case .Unsigned_Integer:
             lit_val, _ := strconv.parse_u64(strings.trim_suffix(e.value, "u"))
-            val := object.Object{ .Unsigned_Integer, lit_val, false }
+            val := object.Object{ .Unsigned_Integer, lit_val, false, 0 }
             emit_constant(&curr_proc.chunk, val)
         case .Float:
             lit_val, _ := strconv.parse_f64(e.value)
-            val := object.Object{ .Float, lit_val, false }
+            val := object.Object{ .Float, lit_val, false, 0 }
             emit_constant(&curr_proc.chunk, val)
         case .True, .False:
             lit_val, _ := strconv.parse_bool(e.value)
-            val := object.Object{ .Boolean, lit_val, false }
+            val := object.Object{ .Boolean, lit_val, false, 0 }
             emit_constant(&curr_proc.chunk, val)
         case .String:
             lit_val := strings.trim(e.value, "\"")
-            val := object.Object{ .String, lit_val, false }
+            val := object.Object{ .String, lit_val, false, 0 }
             emit_constant(&curr_proc.chunk, val)
         case .Rune:
             lit_val, _ := utf8.decode_rune(strings.trim(e.value, "'"))
-            val := object.Object{ .Rune, lit_val, false }
+            val := object.Object{ .Rune, lit_val, false, 0 }
             emit_constant(&curr_proc.chunk, val)
         }
     case ^ast.Identifier:

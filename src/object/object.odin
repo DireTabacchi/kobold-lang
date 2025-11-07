@@ -6,6 +6,8 @@ Object :: struct {
     type: Value_Kind,
     value: Value_Type,
     mutable: bool,
+
+    ref_count: int,
 }
 
 Local :: struct {
