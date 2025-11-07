@@ -2,19 +2,19 @@ package object
 
 import "kobold:tokenizer"
 
-Value :: struct {
+Object :: struct {
     type: Value_Kind,
     value: Value_Type,
     mutable: bool,
 }
 
 Local :: struct {
-    using val: Value,
+    using val: Object,
     scope: int,
 }
 
 Global :: struct {
-    using val: Value,
+    using val: Object,
 }
 
 Value_Kind :: enum {
@@ -39,7 +39,7 @@ Value_Type :: union {
 }
 
 Array :: struct {
-    data: []Value,
+    data: []Object,
     type: Value_Kind,
     len: int,
 }
@@ -62,29 +62,29 @@ value_kind :: proc(tok_type: tokenizer.Token_Kind) -> Value_Kind {
     return Value_Kind.Nil
 }
 
-value_from_token_kind :: proc(val_type: tokenizer.Token_Kind, mutable: bool) -> Value {
-    val: Value
-    val.mutable = mutable
+value_from_token_kind :: proc(val_type: tokenizer.Token_Kind, mutable: bool) -> Object {
+    obj: Object
+    obj.mutable = mutable
     #partial switch val_type {
     case .Type_Integer:
-        val.type = .Integer
-        val.value = i64(0)
+        obj.type = .Integer
+        obj.value = i64(0)
     case .Type_Unsigned_Integer:
-        val.type = .Unsigned_Integer
-        val.value = u64(0)
+        obj.type = .Unsigned_Integer
+        obj.value = u64(0)
     case .Type_Float:
-        val.type = .Float
-        val.value = 0.0
+        obj.type = .Float
+        obj.value = 0.0
     case .Type_Boolean:
-        val.type = .Boolean
-        val.value = false
+        obj.type = .Boolean
+        obj.value = false
     case .Type_String:
-        val.type = .String
-        val.value = ""
+        obj.type = .String
+        obj.value = ""
     case .Type_Rune:
-        val.type = .Rune
-        val.value = rune(0)
+        obj.type = .Rune
+        obj.value = rune(0)
     }
 
-    return val
+    return obj
 }

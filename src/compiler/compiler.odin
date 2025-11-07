@@ -352,7 +352,7 @@ make_array :: proc (arr_type_info: ast.Array_Type, mutable: bool) -> object.Arra
     arr.len = arr_type_info.length
     switch subtype in arr_type_info.type.derived_type {
     case ^ast.Builtin_Type:
-        arr.data = make([]object.Value, arr_type_info.length)
+        arr.data = make([]object.Object, arr_type_info.length)
         for i := 0; i < arr_type_info.length; i += 1 {
             arr.data[i] = object.value_from_token_kind(subtype.type, mutable)
         }
@@ -451,7 +451,7 @@ make_local :: proc(comp: ^Compiler, name: string, type: ^ast.Type_Specifier, mut
     append(&comp.locals, val)
 }
 
-resolve_variable :: proc(c: ^Compiler, name: string) -> (val: object.Value, scope: int, idx: int) {
+resolve_variable :: proc(c: ^Compiler, name: string) -> (val: object.Object, scope: int, idx: int) {
     sym, _ := resolve_symbol(c, name)
     if sym.scope == 0 {
         global := c.globals[sym.id]
@@ -522,27 +522,27 @@ compile_expression :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, expr
         #partial switch e.type {
         case .Integer:
             lit_val, _ := strconv.parse_i64(e.value)
-            val := object.Value{ .Integer, lit_val, false }
+            val := object.Object{ .Integer, lit_val, false }
             emit_constant(&curr_proc.chunk, val)
         case .Unsigned_Integer:
             lit_val, _ := strconv.parse_u64(strings.trim_suffix(e.value, "u"))
-            val := object.Value{ .Unsigned_Integer, lit_val, false }
+            val := object.Object{ .Unsigned_Integer, lit_val, false }
             emit_constant(&curr_proc.chunk, val)
         case .Float:
             lit_val, _ := strconv.parse_f64(e.value)
-            val := object.Value{ .Float, lit_val, false }
+            val := object.Object{ .Float, lit_val, false }
             emit_constant(&curr_proc.chunk, val)
         case .True, .False:
             lit_val, _ := strconv.parse_bool(e.value)
-            val := object.Value{ .Boolean, lit_val, false }
+            val := object.Object{ .Boolean, lit_val, false }
             emit_constant(&curr_proc.chunk, val)
         case .String:
             lit_val := strings.trim(e.value, "\"")
-            val := object.Value{ .String, lit_val, false }
+            val := object.Object{ .String, lit_val, false }
             emit_constant(&curr_proc.chunk, val)
         case .Rune:
             lit_val, _ := utf8.decode_rune(strings.trim(e.value, "'"))
-            val := object.Value{ .Rune, lit_val, false }
+            val := object.Object{ .Rune, lit_val, false }
             emit_constant(&curr_proc.chunk, val)
         }
     case ^ast.Identifier:
@@ -603,7 +603,7 @@ compile_expression :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, expr
     }
 }
 
-emit_constant_val :: proc(chunk: ^code.Chunk, val: object.Value) {
+emit_constant_val :: proc(chunk: ^code.Chunk, val: object.Object) {
     idx : u16 = u16(len(chunk.constants))
     append(&chunk.constants, val)
     emit_byte(chunk, byte(Op_Code.PUSH))
@@ -611,7 +611,7 @@ emit_constant_val :: proc(chunk: ^code.Chunk, val: object.Value) {
 }
 
 emit_constant_zero :: proc(chunk: ^code.Chunk, type: ast.Type_Specifier) {
-    val: object.Value
+    val: object.Object
     val.mutable = true
     #partial switch t in type.derived_type {
     case ^ast.Builtin_Type:

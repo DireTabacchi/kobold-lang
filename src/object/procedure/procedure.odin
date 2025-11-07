@@ -25,7 +25,7 @@ Builtin_Proc :: struct {
     arity: byte,
     varargs: bool,
     return_type: object.Value_Kind,
-    exec: proc (args: ..object.Value) -> object.Value,
+    exec: proc (args: ..object.Object) -> object.Object,
 }
 
 new_proc_main :: proc(type: Proc_Type) -> ^Procedure {
@@ -68,7 +68,7 @@ builtin_procs_destroy :: proc() {
     delete(builtin_procs)
 }
 
-builtin_print :: proc(args: ..object.Value) -> object.Value {
+builtin_print :: proc(args: ..object.Object) -> object.Object {
     for arg in args {
         // TODO: Find better way to handle escapes
         #partial switch arg.type {
@@ -82,10 +82,10 @@ builtin_print :: proc(args: ..object.Value) -> object.Value {
             fmt.print(arg.value)
         }
     }
-    return object.Value{ object.Value_Kind.Nil, i64(0), false }
+    return object.Object{ object.Value_Kind.Nil, i64(0), false }
 }
 
-builtin_println :: proc(args: ..object.Value) -> object.Value {
+builtin_println :: proc(args: ..object.Object) -> object.Object {
     for arg in args {
         // TODO: See builtin_print
         #partial switch arg.type {
@@ -101,18 +101,18 @@ builtin_println :: proc(args: ..object.Value) -> object.Value {
     }
     fmt.print("\n")
 
-    return object.Value{ object.Value_Kind.Nil, i64(0), false }
+    return object.Object{ object.Value_Kind.Nil, i64(0), false }
 }
 
-builtin_array_len :: proc(args: ..object.Value) -> object.Value {
+builtin_array_len :: proc(args: ..object.Object) -> object.Object {
     arg := args[0]
     arr := arg.value.(object.Array)
-    ret_val := object.Value{ object.Value_Kind.Integer, i64(arr.len), false }
+    ret_val := object.Object{ object.Value_Kind.Integer, i64(arr.len), false }
     return ret_val
 }
 
-builtin_clock :: proc(args: ..object.Value) -> object.Value {
+builtin_clock :: proc(args: ..object.Object) -> object.Object {
     now := time.now()
-    ret_val := object.Value{ object.Value_Kind.Integer, i64(time.time_to_unix_nano(now)), false }
+    ret_val := object.Object{ object.Value_Kind.Integer, i64(time.time_to_unix_nano(now)), false }
     return ret_val
 }

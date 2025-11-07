@@ -26,15 +26,12 @@ Virtual_Machine :: struct {
     frames: [FRAME_MAX]^Call_Frame,
     frame_count: int,
 
-    stack: []object.Value,
+    stack: []object.Object,
     globals: [dynamic]object.Global,
     procs: []^proc_lib.Procedure,
     builtin_procs: [dynamic]^proc_lib.Builtin_Proc,
-    //locals: [dynamic]object.Local,
     local_count: int,
 
-    //ip: int,
-    //sp: int,
 }
 
 vm_init :: proc(vm: ^Virtual_Machine, main_proc: ^proc_lib.Procedure, procs: []^proc_lib.Procedure) {
@@ -46,7 +43,7 @@ vm_init :: proc(vm: ^Virtual_Machine, main_proc: ^proc_lib.Procedure, procs: []^
     frame.sp = 0
     frame.ip = 0
     vm.local_count = 0
-    vm.stack = make([]object.Value, STACK_MAX)
+    vm.stack = make([]object.Object, STACK_MAX)
     vm.procs = procs
 
     append(&vm.builtin_procs, &proc_lib.builtin_procs["println"])
@@ -79,14 +76,14 @@ vm_destroy :: proc(vm: ^Virtual_Machine) {
     delete(vm.stack)
 }
 
-stack_pop :: proc(vm: ^Virtual_Machine) -> object.Value {
+stack_pop :: proc(vm: ^Virtual_Machine) -> object.Object {
     frame := vm.frames[vm.frame_count-1]
     val := vm.stack[frame.sp-1]
     frame.sp -= 1
     return val
 }
 
-stack_push :: proc(vm: ^Virtual_Machine, val: object.Value) {
+stack_push :: proc(vm: ^Virtual_Machine, val: object.Object) {
     frame := vm.frames[vm.frame_count-1]
     vm.stack[frame.sp] = val
     frame.sp += 1
@@ -99,12 +96,12 @@ run :: proc(vm: ^Virtual_Machine) {
         switch op_bc {
         case byte(Op_Code.PUSH):
             val := frame.procedure.chunk.constants[read_u16(vm)]
-            push_val: object.Value
+            push_val: object.Object
             if arr_val, is_arr := val.value.(object.Array); is_arr {
                 push_arr: object.Array
                 push_arr.len = arr_val.len
                 push_arr.type = arr_val.type
-                push_arr.data = make([]object.Value, arr_val.len)
+                push_arr.data = make([]object.Object, arr_val.len)
                 copy(push_arr.data, arr_val.data)
                 push_val.type = object.Value_Kind.Array
                 push_val.mutable = false
@@ -170,10 +167,10 @@ run :: proc(vm: ^Virtual_Machine) {
 
 build_array :: proc(vm: ^Virtual_Machine) {
     size := read_u16(vm)
-    val: object.Value
+    val: object.Object
     val.type = object.Value_Kind.Array
     arr: object.Array
-    arr.data = make([]object.Value, size)
+    arr.data = make([]object.Object, size)
     val_type := stack_pop(vm)
     arr.type = val_type.type
     arr.len = int(size)
@@ -228,7 +225,7 @@ exec_builtin_call :: proc(vm: ^Virtual_Machine) {
         arg_count = callee.arity
     }
 
-    args := make([]object.Value, arg_count)
+    args := make([]object.Object, arg_count)
     defer delete(args)
 
     for i := 0; i < int(arg_count); i += 1 {
@@ -251,7 +248,7 @@ exec_builtin_call :: proc(vm: ^Virtual_Machine) {
 
 exec_return :: proc(vm: ^Virtual_Machine) {
     frame := vm.frames[vm.frame_count-1]
-    ret_val: object.Value
+    ret_val: object.Object
     if frame.procedure.return_type != object.Value_Kind.Nil {
         val := stack_pop(vm)
         //print_stack(vm)
@@ -260,7 +257,7 @@ exec_return :: proc(vm: ^Virtual_Machine) {
             ret_arr: object.Array
             ret_arr.len = arr.len
             ret_arr.type = arr.type
-            ret_arr.data = make([]object.Value, arr.len)
+            ret_arr.data = make([]object.Object, arr.len)
             copy(ret_arr.data, arr.data)
             ret_val.type = object.Value_Kind.Array
             ret_val.value = ret_arr
@@ -317,13 +314,13 @@ set_global :: proc(vm: ^Virtual_Machine) {
 get_global :: proc(vm: ^Virtual_Machine) {
     idx := read_u16(vm)
     global_val := vm.globals[idx]
-    push_val: object.Value
+    push_val: object.Object
     #partial switch val_subtype in global_val.value {
     case object.Array:
         arr: object.Array
         arr.len = val_subtype.len
         arr.type = val_subtype.type
-        arr.data = make([]object.Value, val_subtype.len)
+        arr.data = make([]object.Object, val_subtype.len)
         copy(arr.data, val_subtype.data)
         push_val.type = object.Value_Kind.Array
         push_val.mutable = false
@@ -354,13 +351,13 @@ get_local :: proc(vm: ^Virtual_Machine) {
     stack_offset := read_u16(vm)
     bp_offset := stack_offset + u16(frame.bp)
     local_val := vm.stack[bp_offset]
-    push_val: object.Value
+    push_val: object.Object
     #partial switch val_subtype in local_val.value {
     case object.Array:
         arr: object.Array
         arr.len = val_subtype.len
         arr.type = val_subtype.type
-        arr.data = make([]object.Value, val_subtype.len)
+        arr.data = make([]object.Object, val_subtype.len)
         copy(arr.data, val_subtype.data)
         push_val.type = object.Value_Kind.Array
         push_val.mutable = false
@@ -392,7 +389,7 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
     case byte(Op_Code.ADD):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Value
+        res: object.Object
         #partial switch a.type {
         case .Integer:
             res.value = a.value.(i64) + b.value.(i64)
@@ -406,7 +403,7 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
     case byte(Op_Code.SUB):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Value
+        res: object.Object
         #partial switch a.type {
         case .Integer:
             res.value = a.value.(i64) - b.value.(i64)
@@ -420,7 +417,7 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
     case byte(Op_Code.MULT):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Value
+        res: object.Object
         #partial switch a.type {
         case .Integer:
             res.value = a.value.(i64) * b.value.(i64)
@@ -434,7 +431,7 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
     case byte(Op_Code.DIV):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Value
+        res: object.Object
         #partial switch a.type {
         case .Integer:
             res.value = a.value.(i64) / b.value.(i64)
@@ -448,7 +445,7 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
     case byte(Op_Code.MOD):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Value
+        res: object.Object
         #partial switch a.type {
         case .Integer:
             res.value = a.value.(i64) % b.value.(i64)
@@ -460,7 +457,7 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
     case byte(Op_Code.MODF):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Value
+        res: object.Object
         #partial switch a.type {
         case .Integer:
             res.value = a.value.(i64) %% b.value.(i64)
@@ -472,7 +469,7 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
     case byte(Op_Code.EQ):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Value
+        res: object.Object
         #partial switch a.type {
         case .Integer:
             res.value = a.value.(i64) == b.value.(i64)
@@ -492,7 +489,7 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
     case byte(Op_Code.NEQ):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Value
+        res: object.Object
         #partial switch a.type {
         case .Integer:
             res.value = a.value.(i64) != b.value.(i64)
@@ -512,7 +509,7 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
     case byte(Op_Code.LSSR):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Value
+        res: object.Object
         #partial switch a.type {
         case .Integer:
             res.value = a.value.(i64) < b.value.(i64)
@@ -530,7 +527,7 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
     case byte(Op_Code.GRTR):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Value
+        res: object.Object
         #partial switch a.type {
         case .Integer:
             res.value = a.value.(i64) > b.value.(i64)
@@ -548,7 +545,7 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
     case byte(Op_Code.LEQ):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Value
+        res: object.Object
         #partial switch a.type {
         case .Integer:
             res.value = a.value.(i64) <= b.value.(i64)
@@ -566,7 +563,7 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
     case byte(Op_Code.GEQ):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Value
+        res: object.Object
         #partial switch a.type {
         case .Integer:
             res.value = a.value.(i64) >= b.value.(i64)
@@ -584,14 +581,14 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
     case byte(Op_Code.LAND):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Value
+        res: object.Object
         res.value = a.value.(bool) && b.value.(bool)
         res.type = .Boolean
         stack_push(vm, res)
     case byte(Op_Code.LOR):
         b := stack_pop(vm)
         a := stack_pop(vm)
-        res: object.Value
+        res: object.Object
         res.value = a.value.(bool) || b.value.(bool)
         res.type = .Boolean
         stack_push(vm, res)

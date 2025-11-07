@@ -130,7 +130,7 @@ print_procedure :: proc(procedure: procs.Procedure) {
     }
 }
 
-write_value :: proc(builder: ^strings.Builder, value: object.Value) {
+write_value :: proc(builder: ^strings.Builder, value: object.Object) {
     #partial switch value.type {
     case object.Value_Kind.Integer:
         strings.write_i64(builder, value.value.(i64))

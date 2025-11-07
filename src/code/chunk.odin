@@ -4,7 +4,7 @@ import "kobold:object"
 
 Chunk :: struct {
     code: [dynamic]Byte_Code,
-    constants: [dynamic]object.Value,
+    constants: [dynamic]object.Object,
 }
 
 chunk_destroy :: proc(ch: ^Chunk) {
