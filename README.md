@@ -3,7 +3,7 @@
 Kobold is a scripting language. It is a strongly-typed, procedural language that is currently in the very early stages
 of development.
 
-Version: **0.0.44**
+Version: **0.0.45**
 
 ## Building
 
