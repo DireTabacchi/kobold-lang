@@ -68,11 +68,12 @@ parse :: proc(p: ^Parser) {
         if stmt != nil {
             append(&p.prog.stmts, stmt)
         } else {
-            //error(p, p.curr_tok.pos, "error parsing statement")
             return
         }
     }
-    fmt.println("=== Finished parsing ===")
+    when ODIN_DEBUG {
+        fmt.println("=== Finished parsing ===")
+    }
 }
 
 parse_statement :: proc(p: ^Parser) -> ^ast.Statement {
@@ -333,7 +334,6 @@ parse_assign_statement :: proc(p: ^Parser, expect_semicolon: bool) -> ^ast.State
     start_pos := p.curr_tok.pos
     start_idx := p.curr_idx
     ident := parse_identifier(p)
-    //sym: symbol.Symbol
     if id, ok := ident.derived_expression.(^ast.Identifier); ok {
         sym, resolved := resolve_symbol(p, id.name)
         if resolved {
@@ -356,22 +356,11 @@ parse_assign_statement :: proc(p: ^Parser, expect_semicolon: bool) -> ^ast.State
     #partial switch assign_tok.type {
     case .Assign:
         as := ast.new(ast.Assignment_Statement, start_pos, end_pos(p.prev_tok))
-        //if id, valid := ident.derived_expression.(^ast.Identifier); valid {
-        //    as.name = id.name
-        //    as.value = expr
-        //}
         as.ident = ident
         as.value = expr
-        //free(ident)
         return as
     case .Assign_Add..=.Assign_Mod_Floor:
         aos := ast.new(ast.Assignment_Operation_Statement, start_pos, end_pos(p.prev_tok))
-        //if id, valid := ident.derived_expression.(^ast.Identifier); valid {
-        //    aos.name = id.name
-        //    aos.op = assign_tok.type
-        //    aos.value = expr
-        //}
-        //free(ident)
         aos.ident = ident
         aos.op = assign_tok.type
         aos.value = expr
@@ -410,7 +399,6 @@ parse_const_decl :: proc(p: ^Parser) -> ^ast.Statement {
     case:
         val = parse_expression(p)
     }
-    //val := parse_expression(p)
     semi_tok := expect_token(p, .Semicolon)
     cd := ast.new(ast.Declarator, start_pos, end_pos(p.prev_tok))
     cd.name = ident.text
@@ -520,7 +508,6 @@ parse_var_decl :: proc(p: ^Parser) -> ^ast.Statement {
             vd.type = t
         }
         vd.value = val
-        //free(expr_type)
     } else if type == nil && invalid_val {
         errorf_msg(p, start_pos, "cannot deduce type of var `%s`", vd.name)
         vd.type = ast.new(ast.Invalid_Type, start_pos, end_pos(p.prev_tok))
@@ -550,7 +537,6 @@ parse_var_decl :: proc(p: ^Parser) -> ^ast.Statement {
         ast.type_specifier_destroy(expr_type.derived_type)
     }
 
-    fmt.printfln("symtable:\n%v\n", p.sym_table)
     if _, exists := symbol.symbol_exists(vd.name, p.sym_table^); exists {
         errorf_msg(p, vd.start, "name `%s` already used", vd.name)
         return vd
@@ -613,19 +599,12 @@ expression_type :: proc(p: ^Parser, expr: ^ast.Expression) -> ^ast.Type_Specifie
         return ts
     case ^ast.Identifier:
         name := e.name
-        //type: tokenizer.Token_Kind
         sym, exists := symbol.symbol_exists(name, p.sym_table^)
         if exists {
             ts := symbol.type_specifier_from_symbol_type(sym.type)
             ts.start = expr.start
             ts.end = expr.end
             return ts
-            //#partial switch sym_type in sym.type {
-            //case ^symbol.Simple_Symbol_Type:
-            //    type = sym_type.type
-            //case ^symbol.Array_Symbol_Type:
-            //    return type_specifier_from_symbol
-            //}
         }
         it := ast.new(ast.Invalid_Type, expr.start, expr.end)
         return it
@@ -652,7 +631,6 @@ expression_type :: proc(p: ^Parser, expr: ^ast.Expression) -> ^ast.Type_Specifie
         return ts
     case ^ast.Array_Accessor:
         ident := e.ident
-        //type := tokenizer.Token_Kind
         sym, resolved := resolve_symbol(p, ident)
         if resolved {
             return symbol.type_specifier_from_symbol_type(sym.type)

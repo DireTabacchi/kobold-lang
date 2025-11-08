@@ -13,7 +13,7 @@ import "kobold:compiler"
 import "kobold:object/procedure"
 import "kobold:vm"
 
-KOBOLD_VERSION :: "0.0.44"
+KOBOLD_VERSION :: "0.0.45"
 COMPILER_VERSION :: ODIN_VERSION
 
 main :: proc() {
@@ -73,7 +73,9 @@ main :: proc() {
     tokens := tokenizer.scan(&tok)
     defer delete(tokens)
 
-    tokenizer.print(tokens[:])
+    when ODIN_DEBUG {
+        tokenizer.print(tokens[:])
+    }
     
     p : parser.Parser
     parser.parser_init(&p, tokens[:])
@@ -85,16 +87,20 @@ main :: proc() {
         return
     }
 
-    fmt.println("Symbol Table:")
-    for sym in p.sym_table.symbols {
-        fmt.println(sym)
+    when ODIN_DEBUG {
+        fmt.println("Symbol Table:")
+        for sym in p.sym_table.symbols {
+            fmt.println(sym)
+        }
     }
 
-    printer: ast.AST_Printer
-    ast.printer_init(&printer)
-    ast.print_ast(&printer, p.prog)
+    when ODIN_DEBUG {
+        printer: ast.AST_Printer
+        ast.printer_init(&printer)
+        ast.print_ast(&printer, p.prog)
 
-    ast.printer_destroy(&printer)
+        ast.printer_destroy(&printer)
+    }
 
     comp: compiler.Compiler
     compiler.compiler_init(&comp)
@@ -103,7 +109,9 @@ main :: proc() {
     compiler.compile(&comp, p.prog)
     defer compiler.compiler_destroy(&comp)
 
-    compiler.print(comp)
+    when ODIN_DEBUG {
+        compiler.print(comp)
+    }
 
     //fmt.println("Constants:")
     //fmt.println(comp.chunk.constants)
@@ -115,7 +123,9 @@ main :: proc() {
     vm.vm_init(&virtual_machine, comp.main_proc, comp.procs[:])
 
     vm.run(&virtual_machine)
-    fmt.println("=== VM Finished ===")
+    when ODIN_DEBUG { 
+        fmt.println("=== VM Finished ===")
+    }
     //fmt.printfln("Stack top: %v", virtual_machine.stack[virtual_machine.frames[virtual_machine.frame_count-1].sp-1].value)
     //fmt.printfln("Globals:\n%v", virtual_machine.globals)
     //fmt.printfln("stack:\n%v", virtual_machine.stack[:virtual_machine.frames[virtual_machine.frame_count-1].sp])

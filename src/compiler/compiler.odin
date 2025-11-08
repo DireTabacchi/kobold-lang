@@ -79,7 +79,9 @@ compile :: proc(comp: ^Compiler, prog: ^ast.Program) {
         compile_statement(comp, comp.main_proc, statement.derived_statement)
     }
     emit_byte(&comp.main_proc.chunk, byte(Op_Code.RET))
-    fmt.println("=== Finished Compilation ===")
+    when ODIN_DEBUG {
+        fmt.println("=== Finished Compilation ===")
+    }
 }
 
 compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt: ast.Any_Statement) {
@@ -116,9 +118,7 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt:
             _, scope, idx = resolve_variable(comp, ident.name)
         case ^ast.Array_Accessor:
             _, scope, idx = resolve_variable(comp, ident.ident)
-            //compile_expression(comp, curr_proc, ident.index.derived_expression)
         }
-        //_, scope, idx := resolve_variable(comp, st.name)
         compile_expression(comp, curr_proc, st.value.derived_expression)
         set_op, get_op: Op_Code
         if scope == 0 {
@@ -128,11 +128,6 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt:
             set_op = .SETL
             get_op = .GETL
         }
-        //if scope == 0 {
-        //    emit_byte(&curr_proc.chunk, byte(Op_Code.SETG))
-        //} else {
-        //    emit_byte(&curr_proc.chunk, byte(Op_Code.SETL))
-        //}
         #partial switch ident in st.ident.derived_expression {
         case ^ast.Array_Accessor:
             compile_expression(comp, curr_proc, ident.index.derived_expression)
@@ -316,9 +311,6 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt:
         for param in st.params {
             if param_stmt, ok := param.derived_statement.(^ast.Parameter_Declarator); ok {
                 make_local(comp, param_stmt.name, param_stmt.type, false)
-                //if param_type, valid := param_stmt.type.derived_type.(^ast.Builtin_Type); valid {
-                //    make_local(comp, param_stmt.name, param_type.type, false)
-                //}
             }
         }
         for s in st.body {
@@ -636,7 +628,6 @@ emit_constant_zero :: proc(chunk: ^code.Chunk, type: ast.Type_Specifier) {
             val.value = rune(0)
         }
     case ^ast.Array_Type:
-        //arr_type := type.derived_type.(^ast.Array_Type)
         arr := make_array(t^, true)
         val.type = object.Value_Kind.Array
         val.value = arr

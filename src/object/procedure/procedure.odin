@@ -82,7 +82,7 @@ builtin_print :: proc(args: ..object.Object) -> object.Object {
             fmt.print(arg.value)
         }
     }
-    return object.Object{ object.Value_Kind.Nil, i64(0), false, 1 }
+    return object.Object{ object.Value_Kind.Nil, i64(0), false, 0 }
 }
 
 builtin_println :: proc(args: ..object.Object) -> object.Object {
@@ -101,18 +101,18 @@ builtin_println :: proc(args: ..object.Object) -> object.Object {
     }
     fmt.print("\n")
 
-    return object.Object{ object.Value_Kind.Nil, i64(0), false, 1 }
+    return object.Object{ object.Value_Kind.Nil, i64(0), false, 0 }
 }
 
 builtin_array_len :: proc(args: ..object.Object) -> object.Object {
     arg := args[0]
     arr := arg.value.(object.Array)
-    ret_val := object.Object{ object.Value_Kind.Integer, i64(arr.len), false, 1 }
+    ret_val := object.Object{ object.Value_Kind.Integer, i64(arr.len), false, 0 }
     return ret_val
 }
 
 builtin_clock :: proc(args: ..object.Object) -> object.Object {
     now := time.now()
-    ret_val := object.Object{ object.Value_Kind.Integer, i64(time.time_to_unix_nano(now)), false, 1 }
+    ret_val := object.Object{ object.Value_Kind.Integer, i64(time.time_to_unix_nano(now)), false, 0 }
     return ret_val
 }
