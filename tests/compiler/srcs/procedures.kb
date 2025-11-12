@@ -1,14 +1,14 @@
-//proc foo() {
-//    var a := 3.14;
-//    var b := 3.0;
-//    var c := a + b;
-//    if c > 3.0 {
-//        return;
-//    }
-//    var d := a + b * 2;
-//}
-//
-//foo();
+proc foo() {
+    var a := 3.14;
+    var b := 3.0;
+    var c := a + b;
+    if c > 3.0 {
+        return;
+    }
+    var d := a + b * 2;
+}
+
+foo();
 
 proc add(a: int, b: int) -> int {
     var res := a + b;

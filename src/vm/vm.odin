@@ -170,8 +170,8 @@ run :: proc(vm: ^Virtual_Machine) {
             }
         }
         frame.ip += 1
-        collect(&vm.gc)
-        garbage_upkeep(&vm.gc)
+        //collect(&vm.gc)
+        //garbage_upkeep(&vm.gc)
         //print_stack(vm)
     }
 

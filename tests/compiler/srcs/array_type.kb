@@ -20,7 +20,7 @@ var start: int;
 var end: int;
 start = clock();
 var results: array[3]float;
-for var i := 0; i < 10; i += 1 {
+for var i := 0; i < 1000; i += 1 {
     results = mult_by_nums(vals);
 }
 end = clock();

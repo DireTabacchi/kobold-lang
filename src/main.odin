@@ -9,11 +9,11 @@ _ :: mem
 import "kobold:tokenizer"
 import "kobold:parser"
 import "kobold:ast"
-import "kobold:compiler"
-import "kobold:object/procedure"
-import "kobold:vm"
+//import "kobold:compiler"
+//import "kobold:object/procedure"
+//import "kobold:vm"
 
-KOBOLD_VERSION :: "0.0.45"
+KOBOLD_VERSION :: "0.0.46"
 COMPILER_VERSION :: ODIN_VERSION
 
 main :: proc() {
@@ -95,41 +95,37 @@ main :: proc() {
     }
 
     when ODIN_DEBUG {
-        printer: ast.AST_Printer
+        printer: ast.AstPrinter
         ast.printer_init(&printer)
         ast.print_ast(&printer, p.prog)
 
         ast.printer_destroy(&printer)
     }
 
-    comp: compiler.Compiler
-    compiler.compiler_init(&comp)
-    defer procedure.builtin_procs_destroy()
+    // Compile Phase
+    //comp: compiler.Compiler
+    //compiler.compiler_init(&comp)
+    //defer procedure.builtin_procs_destroy()
 
-    compiler.compile(&comp, p.prog)
-    defer compiler.compiler_destroy(&comp)
+    //compiler.compile(&comp, p.prog)
+    //defer compiler.compiler_destroy(&comp)
 
-    when ODIN_DEBUG {
-        compiler.print(comp)
-    }
+    //when ODIN_DEBUG {
+    //    compiler.print(comp)
+    //}
 
-    //fmt.println("Constants:")
-    //fmt.println(comp.chunk.constants)
+    // Virtual Machine Phase
+    //virtual_machine: vm.Virtual_Machine
+    //vm.vm_init(&virtual_machine, comp.main_proc, comp.procs[:])
 
-    //fmt.println("Compiler Globals:")
-    //fmt.println(comp.globals)
-
-    virtual_machine: vm.Virtual_Machine
-    vm.vm_init(&virtual_machine, comp.main_proc, comp.procs[:])
-
-    vm.run(&virtual_machine)
-    when ODIN_DEBUG { 
-        fmt.println("=== VM Finished ===")
-    }
+    //vm.run(&virtual_machine)
+    //when ODIN_DEBUG {
+    //    fmt.println("=== VM Finished ===")
+    //}
     //fmt.printfln("Stack top: %v", virtual_machine.stack[virtual_machine.frames[virtual_machine.frame_count-1].sp-1].value)
     //fmt.printfln("Globals:\n%v", virtual_machine.globals)
     //fmt.printfln("stack:\n%v", virtual_machine.stack[:virtual_machine.frames[virtual_machine.frame_count-1].sp])
-    vm.vm_destroy(&virtual_machine)
+    //vm.vm_destroy(&virtual_machine)
 }
 
 print_short_help :: proc() {

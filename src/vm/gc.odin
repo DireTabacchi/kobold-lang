@@ -5,30 +5,28 @@ import "kobold:object"
 
 FREE_TRIGGER :: 256
 
-GarbageCollector :: struct {
+Garbage_Collector :: struct {
     objects: [dynamic]^object.Object,
     garbage: [dynamic]^object.Object,
 }
 
-track_object :: proc(gc: ^GarbageCollector, obj: ^object.Object) {
+track_object :: proc(gc: ^Garbage_Collector, obj: ^object.Object) {
     append(&gc.objects, obj)
 }
 
-collect :: proc(gc: ^GarbageCollector) {
-    collected := 0
+collect :: proc(gc: ^Garbage_Collector) {
     for i := 0; i < len(gc.objects); {
         if gc.objects[i].ref_count == 0 {
             g := gc.objects[i]
             unordered_remove(&gc.objects, i)
             append(&gc.garbage, g)
-            collected += 1
         } else {
             i += 1
         }
     }
 }
 
-garbage_upkeep :: proc(gc: ^GarbageCollector) {
+garbage_upkeep :: proc(gc: ^Garbage_Collector) {
     if len(gc.garbage) >= FREE_TRIGGER {
         for len(gc.garbage) > 0 {
             garbage_val := gc.garbage[0]
@@ -41,7 +39,7 @@ garbage_upkeep :: proc(gc: ^GarbageCollector) {
     }
 }
 
-garbage_free :: proc(gc: ^GarbageCollector) {
+garbage_free :: proc(gc: ^Garbage_Collector) {
     for len(gc.garbage) > 0 {
         garbage_val := gc.garbage[0]
         if arr_val, is_arr := garbage_val.value.(object.Array); is_arr {
@@ -52,7 +50,7 @@ garbage_free :: proc(gc: ^GarbageCollector) {
     }
 }
 
-program_free :: proc(gc: ^GarbageCollector) {
+program_free :: proc(gc: ^Garbage_Collector) {
     garbage_free(gc)
 
     for len(gc.objects) > 0 {
@@ -65,7 +63,7 @@ program_free :: proc(gc: ^GarbageCollector) {
     }
 }
 
-gc_destroy :: proc(gc: ^GarbageCollector) {
+gc_destroy :: proc(gc: ^Garbage_Collector) {
     delete(gc.objects)
     delete(gc.garbage)
 }

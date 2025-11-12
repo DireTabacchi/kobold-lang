@@ -1,34 +1,34 @@
-//var alfa: int;
-//for var i := 0; i < 100; i = i + 1 {
-//    alfa = i;
-//    var charlie := 3;
-//    if i == 20 {
-//        alfa = 200;
-//        break;
-//    }
-//    var bravo := i + 1;
-//    if alfa > 19 {
-//        break;
-//    }
-//    alfa = bravo * i;
-//}
-//alfa;
-
-var alfa := 0;
-
-for {
-    alfa = alfa + 1;
-    if alfa >= 100 {
+var alfa: int;
+for var i := 0; i < 100; i = i + 1 {
+    alfa = i;
+    var charlie := 3;
+    if i == 20 {
+        alfa = 200;
         break;
     }
-    var bravo := 10;
-    for {
-        if bravo > 100 {
-            alfa = bravo;
-            break;
-        }
-        bravo = alfa * bravo * 5 / 2;
+    var bravo := i + 1;
+    if alfa > 19 {
+        break;
     }
+    alfa = bravo * i;
 }
+//alfa;
+
+//var alfa := 0;
+//
+//for {
+//    alfa = alfa + 1;
+//    if alfa >= 100 {
+//        break;
+//    }
+//    var bravo := 10;
+//    for {
+//        if bravo > 100 {
+//            alfa = bravo;
+//            break;
+//        }
+//        bravo = alfa * bravo * 5 / 2;
+//    }
+//}
 
 println(alfa);

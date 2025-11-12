@@ -56,6 +56,12 @@ Procedure_Declarator :: struct {
     body: []^Statement,
 }
 
+Type_Declarator :: struct {
+    using node: Statement,
+    name: string,
+    type: ^Type_Specifier,
+}
+
 Parameter_Declarator :: struct {
     using node: Statement,
     name: string,
@@ -170,6 +176,17 @@ Builtin_Type :: struct {
     type: tokenizer.Token_Kind,
 }
 
+Identifier_Type :: struct {
+    using node: Type_Specifier,
+    identifier: string,
+}
+
+Alias_Type :: struct {
+    using node: Type_Specifier,
+    alias: string,
+    type: ^Type_Specifier,
+}
+
 Array_Type :: struct {
     using node: Type_Specifier,
     length: int,
@@ -184,6 +201,7 @@ Any_Statement :: union {
     ^Invalid_Statement,
     ^Declarator,
     ^Procedure_Declarator,
+    ^Type_Declarator,
     ^Parameter_Declarator,
     ^Expression_Statement,
     ^Assignment_Statement,
@@ -211,6 +229,8 @@ Any_Expression :: union {
 Any_Type :: union {
     ^Invalid_Type,
     ^Builtin_Type,
+    ^Identifier_Type,
+    ^Alias_Type,
     ^Array_Type,
 }
 
@@ -240,7 +260,7 @@ destroy :: proc(tree: ^Program) {
 }
 
 statement_destroy :: proc(stmt: Any_Statement) {
-    #partial switch s in stmt {
+    switch s in stmt {
     case ^Declarator:
         if s.type != nil {
             type_specifier_destroy(s.type.derived_type)
@@ -266,20 +286,29 @@ statement_destroy :: proc(stmt: Any_Statement) {
             delete(s.body)
         }
         free(s)
+
+    case ^Type_Declarator:
+        type_specifier_destroy(s.type.derived_type)
+        free(s)
+
     case ^Parameter_Declarator:
         type_specifier_destroy(s.type.derived_type)
         free(s)
+
     case ^Assignment_Statement:
         expression_destroy(s.ident.derived_expression)
         expression_destroy(s.value.derived_expression)
         free(s)
+
     case ^Assignment_Operation_Statement:
         expression_destroy(s.ident.derived_expression)
         expression_destroy(s.value.derived_expression)
         free(s)
+
     case ^Expression_Statement:
         expression_destroy(s.expr.derived_expression)
         free(s)
+
     case ^If_Statement:
         expression_destroy(s.cond.derived_expression)
         for cons in s.consequent {
@@ -292,6 +321,7 @@ statement_destroy :: proc(stmt: Any_Statement) {
             statement_destroy(s.alternative.derived_statement)
         }
         free(s)
+
     case ^Else_If_Statement:
         expression_destroy(s.cond.derived_expression)
         for cons in s.consequent {
@@ -304,6 +334,7 @@ statement_destroy :: proc(stmt: Any_Statement) {
             statement_destroy(s.alternative.derived_statement)
         }
         free(s)
+
     case ^Else_Statement:
         for cons in s.consequent {
             statement_destroy(cons.derived_statement)
@@ -312,6 +343,7 @@ statement_destroy :: proc(stmt: Any_Statement) {
             delete(s.consequent)
         }
         free(s)
+
     case ^For_Statement:
         if s.decl != nil {
             statement_destroy(s.decl.derived_statement)
@@ -329,12 +361,17 @@ statement_destroy :: proc(stmt: Any_Statement) {
             delete(s.body)
         }
         free(s)
+
     case ^Break_Statement:
         free(s)
+
     case ^Return_Statement:
         if s.expr != nil {
             expression_destroy(s.expr.derived_expression)
         }
+        free(s)
+
+    case ^Invalid_Statement:
         free(s)
     }
 }
@@ -376,6 +413,13 @@ type_specifier_destroy :: proc(type_spec: Any_Type) {
     case ^Invalid_Type:
         free(ts)
     case ^Builtin_Type:
+        free(ts)
+    case ^Identifier_Type:
+        free(ts)
+    case ^Alias_Type:
+        if ts.type != nil {
+            type_specifier_destroy(ts.type.derived_type)
+        }
         free(ts)
     case ^Array_Type:
         type_specifier_destroy(ts.type.derived_type)

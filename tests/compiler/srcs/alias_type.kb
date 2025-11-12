@@ -1,0 +1,7 @@
+type EmployeeId: uint;
+
+//var new_emp: EmployeeId = 25191002; // should error
+
+var new_emp: EmployeeId = 25191002u;
+
+println("Employee ID: ", new_emp);
