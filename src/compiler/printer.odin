@@ -14,9 +14,9 @@ print :: proc(comp: Compiler) {
 }
 
 print_procedure :: proc(procedure: procs.Procedure) {
-    if procedure.type == .Script {
+    if procedure.type == .SCRIPT {
         fmt.printfln("Script: (%d bytes)", len(procedure.chunk.code))
-    } else if procedure.type == .Proc {
+    } else if procedure.type == .PROC {
         fmt.printfln("Proc %s: (%d bytes)", procedure.name, len(procedure.chunk.code))
     }
     for i := 0; i < len(procedure.chunk.code); i += 1 {
@@ -132,23 +132,23 @@ print_procedure :: proc(procedure: procs.Procedure) {
 
 write_value :: proc(builder: ^strings.Builder, value: object.Object) {
     #partial switch value.type {
-    case object.Value_Kind.Integer:
+    case object.Value_Kind.INTEGER:
         strings.write_i64(builder, value.value.(i64))
-    case object.Value_Kind.Unsigned_Integer:
+    case object.Value_Kind.UNSIGNED_INTEGER:
         strings.write_u64(builder, value.value.(u64))
-    case object.Value_Kind.Float:
+    case object.Value_Kind.FLOAT:
         strings.write_f64(builder, value.value.(f64), 'f')
-    case object.Value_Kind.Boolean:
+    case object.Value_Kind.BOOLEAN:
         if value.value.(bool) {
             strings.write_string(builder, "true")
         } else {
             strings.write_string(builder, "false")
         }
-    case object.Value_Kind.String:
+    case object.Value_Kind.STRING:
         strings.write_quoted_string(builder, value.value.(string))
-    case object.Value_Kind.Rune:
+    case object.Value_Kind.RUNE:
         strings.write_rune(builder, value.value.(rune))
-    case object.Value_Kind.Array:
+    case object.Value_Kind.ARRAY:
         arr := value.value.(object.Array)
         strings.write_string(builder, "{ ")
         for v, i in arr.data {

@@ -183,8 +183,7 @@ Identifier_Type :: struct {
 
 Alias_Type :: struct {
     using node: Type_Specifier,
-    alias: string,
-    type: ^Type_Specifier,
+    subtype: ^Type_Specifier,
 }
 
 Array_Type :: struct {
@@ -417,8 +416,8 @@ type_specifier_destroy :: proc(type_spec: Any_Type) {
     case ^Identifier_Type:
         free(ts)
     case ^Alias_Type:
-        if ts.type != nil {
-            type_specifier_destroy(ts.type.derived_type)
+        if ts.subtype != nil {
+            type_specifier_destroy(ts.subtype.derived_type)
         }
         free(ts)
     case ^Array_Type:

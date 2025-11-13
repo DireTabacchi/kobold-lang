@@ -40,7 +40,7 @@ Break_Stat :: struct {
 
 compiler_init :: proc(comp: ^Compiler) {
     comp.sym_table = symbol.new()
-    comp.main_proc = proc_lib.new_proc(.Script)
+    comp.main_proc = proc_lib.new_proc(.SCRIPT)
 
     append(&comp.builtin_procs, &proc_lib.builtin_procs["println"])
     append(&comp.builtin_procs, &proc_lib.builtin_procs["print"])
@@ -61,7 +61,7 @@ compiler_destroy :: proc(comp: ^Compiler) {
     }
     delete(comp.builtin_procs)
     for g in comp.globals {
-        if g.type == object.Value_Kind.Array {
+        if g.type == object.Value_Kind.ARRAY {
             arr, _ := g.value.(object.Array)
             delete(arr.data)
         }
@@ -111,11 +111,17 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt:
         emit_byte(&curr_proc.chunk, byte(set_op))
         emit_bytes(&curr_proc.chunk, idx)
 
+    case ^ast.Type_Declarator:
+        symbol_type := symbol.make_symbol_type(st.type)
+        type_symbol := symbol.Symbol{ st.name, symbol_type, false, comp.curr_scope, len(comp.sym_table.symbols) }
+        append(&comp.sym_table.symbols, type_symbol)
+
     case ^ast.Assignment_Statement:
         scope, idx: int
         #partial switch ident in st.ident.derived_expression {
         case ^ast.Identifier:
             _, scope, idx = resolve_variable(comp, ident.name)
+
         case ^ast.Array_Accessor:
             _, scope, idx = resolve_variable(comp, ident.ident)
         }
@@ -158,17 +164,17 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt:
         emit_bytes(&curr_proc.chunk, u16(idx))
         compile_expression(comp, curr_proc, st.value.derived_expression)
         #partial switch st.op {
-        case .Assign_Add:
+        case .ASSIGN_ADD:
             emit_byte(&curr_proc.chunk, byte(Op_Code.ADD))
-        case .Assign_Minus:
+        case .ASSIGN_MINUS:
             emit_byte(&curr_proc.chunk, byte(Op_Code.SUB))
-        case .Assign_Mult:
+        case .ASSIGN_MULT:
             emit_byte(&curr_proc.chunk, byte(Op_Code.MULT))
-        case .Assign_Div:
+        case .ASSIGN_DIV:
             emit_byte(&curr_proc.chunk, byte(Op_Code.DIV))
-        case .Assign_Mod:
+        case .ASSIGN_MOD:
             emit_byte(&curr_proc.chunk, byte(Op_Code.MOD))
-        case .Assign_Mod_Floor:
+        case .ASSIGN_MOD_FLOOR:
             emit_byte(&curr_proc.chunk, byte(Op_Code.MODF))
         }
         emit_byte(&curr_proc.chunk, byte(set_op))
@@ -176,6 +182,7 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt:
 
     case ^ast.Expression_Statement:
         compile_expression(comp, curr_proc, st.expr.derived_expression)
+
     case ^ast.If_Statement:
         compile_expression(comp, curr_proc, st.cond.derived_expression)
         else_jump := emit_jump(&curr_proc.chunk, byte(Op_Code.JF))
@@ -192,6 +199,7 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt:
         } else {
             patch_jump(&curr_proc.chunk, else_jump)
         }
+
     case ^ast.Else_If_Statement:
         compile_expression(comp, curr_proc, st.cond.derived_expression)
         else_jump := emit_jump(&curr_proc.chunk, byte(Op_Code.JF))
@@ -208,12 +216,14 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt:
         } else {
             patch_jump(&curr_proc.chunk, else_jump)
         }
+
     case ^ast.Else_Statement:
         begin_scope(comp)
         for s in st.consequent {
             compile_statement(comp, curr_proc, s.derived_statement)
         }
         end_scope(comp, curr_proc, false)
+
     case ^ast.For_Statement:
         begin_scope(comp)
 
@@ -266,6 +276,7 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt:
         }
         pop(&comp.loop_scopes)
         end_scope(comp, curr_proc, false)
+
     case ^ast.Break_Statement:
         comp.flag_break = true
         break_stat: Break_Stat
@@ -278,29 +289,29 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt:
         append(&comp.break_stats, break_stat)
 
     case ^ast.Procedure_Declarator:
-        new_proc := proc_lib.new_proc(st.name, byte(len(st.params)), proc_lib.Proc_Type.Proc)
+        new_proc := proc_lib.new_proc(st.name, byte(len(st.params)), proc_lib.Proc_Type.PROC)
         if st.return_type == nil {
-            new_proc.return_type = object.Value_Kind.Nil
+            new_proc.return_type = object.Value_Kind.NIL
         } else {
             //return_type, ok := st.return_type.derived_type.(^ast.Builtin_Type)
             #partial switch return_type in st.return_type.derived_type {
             case ^ast.Builtin_Type:
                 #partial switch return_type.type {
-                case .Type_Integer:
-                    new_proc.return_type = object.Value_Kind.Integer
-                case .Type_Unsigned_Integer:
-                    new_proc.return_type = object.Value_Kind.Unsigned_Integer
-                case .Type_Float:
-                    new_proc.return_type = object.Value_Kind.Float
-                case .Type_Boolean:
-                    new_proc.return_type = object.Value_Kind.Boolean
-                case .Type_Rune:
-                    new_proc.return_type = object.Value_Kind.Rune
-                case .Type_String:
-                    new_proc.return_type = object.Value_Kind.String
+                case .TYPE_INTEGER:
+                    new_proc.return_type = object.Value_Kind.INTEGER
+                case .TYPE_UNSIGNED_INTEGER:
+                    new_proc.return_type = object.Value_Kind.UNSIGNED_INTEGER
+                case .TYPE_FLOAT:
+                    new_proc.return_type = object.Value_Kind.FLOAT
+                case .TYPE_BOOLEAN:
+                    new_proc.return_type = object.Value_Kind.BOOLEAN
+                case .TYPE_RUNE:
+                    new_proc.return_type = object.Value_Kind.RUNE
+                case .TYPE_STRING:
+                    new_proc.return_type = object.Value_Kind.STRING
                 }
             case ^ast.Array_Type:
-                new_proc.return_type = object.Value_Kind.Array
+                new_proc.return_type = object.Value_Kind.ARRAY
             case:
                 fmt.eprintfln("[%d:%d] unknown return type", st.start.line, st.start.col)
                 return
@@ -324,8 +335,8 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt:
             emit_byte(&new_proc.chunk, byte(Op_Code.RET))
         }
 
-        proc_sym_type, _ := mem.new(symbol.Simple_Symbol_Type)
-        proc_sym_type.type = tokenizer.Token_Kind.Proc
+        proc_sym_type, _ := mem.new(symbol.Builtin_Symbol_Type)
+        proc_sym_type.type = tokenizer.Token_Kind.PROC
         sym := symbol.Symbol{ new_proc.name, proc_sym_type, false, comp.curr_scope, len(comp.procs) }
 
         append(&comp.sym_table.symbols, sym)
@@ -351,6 +362,8 @@ make_array :: proc (arr_type_info: ast.Array_Type, mutable: bool) -> object.Arra
         arr.type = object.value_kind(subtype.type)
     case ^ast.Array_Type:
         // TODO: multi-dimensional arrays
+    case ^ast.Identifier_Type:
+    case ^ast.Alias_Type:
     case ^ast.Invalid_Type:
     }
 
@@ -358,48 +371,68 @@ make_array :: proc (arr_type_info: ast.Array_Type, mutable: bool) -> object.Arra
 }
 
 make_global :: proc(comp: ^Compiler, name: string, type: ^ast.Type_Specifier, mutable: bool) {
-    type_tok: tokenizer.Token_Kind
-    switch t in type.derived_type {
-    case ^ast.Builtin_Type:
-        type_tok = t.type
-    case ^ast.Array_Type:
-        type_tok = tokenizer.Token_Kind.Array
-    case ^ast.Invalid_Type:
-        type_tok = tokenizer.Token_Kind.Invalid
-    }
+    //type_tok: tokenizer.Token_Kind
+    //switch t in type.derived_type {
+    //case ^ast.Builtin_Type:
+    //    type_tok = t.type
+    //case ^ast.Array_Type:
+    //    type_tok = tokenizer.Token_Kind.ARRAY
+    //case ^ast.Identifier_Type:
+    //    type_tok
+    //case ^ast.Invalid_Type:
+    //    type_tok = tokenizer.Token_Kind.INVALID
+    //}
     sym_type := symbol.make_symbol_type(type.start, type)
-    sym := symbol.Symbol{ name, sym_type, mutable, comp.curr_scope, len(comp.globals) }
-    append(&comp.sym_table.symbols, sym)
-
     val: object.Global
-    switch sym_type in sym.type {
-    case ^symbol.Simple_Symbol_Type:
-        #partial switch sym_type.type {
-        case .Type_Integer:
-            val.type = .Integer
+    switch st in sym_type {
+    case ^symbol.Builtin_Symbol_Type:
+        #partial switch st.type {
+        case .TYPE_INTEGER:
+            val.type = .INTEGER
             val.value = i64(0)
-        case .Type_Unsigned_Integer:
-            val.type = .Unsigned_Integer
+        case .TYPE_UNSIGNED_INTEGER:
+            val.type = .UNSIGNED_INTEGER
             val.value = u64(0)
-        case .Type_Float:
-            val.type = .Float
+        case .TYPE_FLOAT:
+            val.type = .FLOAT
             val.value = 0.0
-        case .Type_Boolean:
-            val.type = .Boolean
+        case .TYPE_BOOLEAN:
+            val.type = .BOOLEAN
             val.value = false
-        case .Type_String:
-            val.type = .String
+        case .TYPE_STRING:
+            val.type = .STRING
             val.value = ""
-        case .Type_Rune:
-            val.type = .Rune
+        case .TYPE_RUNE:
+            val.type = .RUNE
             val.value = rune(0)
         }
     case ^symbol.Array_Symbol_Type:
         arr_type := type.derived_type.(^ast.Array_Type)
-        val.type = .Array
-        arr := make_array(arr_type^, sym.mutable)
+        val.type = .ARRAY
+        arr := make_array(arr_type^, mutable)
         val.value = arr
+    case ^symbol.Identifier_Symbol_Type:
+        sym, resolved := resolve_symbol(comp, st.typename)
+        if resolved {
+            ts := symbol.type_specifier_from_symbol_type(sym.type)
+            make_global(comp, name, ts, mutable)
+            ast.type_specifier_destroy(ts.derived_type)
+            symbol.symbol_type_destroy(&sym_type)
+            return
+        } else {
+            return
+        }
+    case ^symbol.Alias_Symbol_Type:
+        ts := symbol.type_specifier_from_symbol_type(st.subtype)
+        make_global(comp, name, ts, mutable)
+        ast.type_specifier_destroy(ts.derived_type)
+        symbol.symbol_type_destroy(&sym_type)
+        return
     }
+
+    sym := symbol.Symbol{ name, sym_type, mutable, comp.curr_scope, len(comp.globals) }
+    append(&comp.sym_table.symbols, sym)
+
     val.mutable = sym.mutable
     append(&comp.globals, val)
 }
@@ -410,33 +443,35 @@ make_local :: proc(comp: ^Compiler, name: string, type: ^ast.Type_Specifier, mut
     append(&comp.sym_table.symbols, sym)
 
     val: object.Local
-    switch sym_type in sym.type {
-    case ^symbol.Simple_Symbol_Type:
-        #partial switch sym_type.type {
-        case .Type_Integer:
-            val.type = .Integer
+    switch st in sym.type {
+    case ^symbol.Builtin_Symbol_Type:
+        #partial switch st.type {
+        case .TYPE_INTEGER:
+            val.type = .INTEGER
             val.value = i64(0)
-        case .Type_Unsigned_Integer:
-            val.type = .Unsigned_Integer
+        case .TYPE_UNSIGNED_INTEGER:
+            val.type = .UNSIGNED_INTEGER
             val.value = u64(0)
-        case .Type_Float:
-            val.type = .Float
+        case .TYPE_FLOAT:
+            val.type = .FLOAT
             val.value = 0.0
-        case .Type_Boolean:
-            val.type = .Boolean
+        case .TYPE_BOOLEAN:
+            val.type = .BOOLEAN
             val.value = false
-        case .Type_String:
-            val.type = .String
+        case .TYPE_STRING:
+            val.type = .STRING
             val.value = ""
-        case .Type_Rune:
-            val.type = .Rune
+        case .TYPE_RUNE:
+            val.type = .RUNE
             val.value = rune(0)
         }
     case ^symbol.Array_Symbol_Type:
         arr_type := type.derived_type.(^ast.Array_Type)
-        val.type = .Array
+        val.type = .ARRAY
         arr := make_array(arr_type^, sym.mutable)
         val.value = arr
+    case ^symbol.Identifier_Symbol_Type:
+    case ^symbol.Alias_Symbol_Type:
     }
     val.mutable = sym.mutable
     val.scope = comp.curr_scope
@@ -469,41 +504,41 @@ compile_expression :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, expr
         compile_expression(comp, curr_proc, e.left.derived_expression)
         compile_expression(comp, curr_proc, e.right.derived_expression)
         #partial switch e.op.type {
-        case .Plus:
+        case .PLUS:
             emit_byte(&curr_proc.chunk, byte(Op_Code.ADD))
-        case .Minus:
+        case .MINUS:
             emit_byte(&curr_proc.chunk, byte(Op_Code.SUB))
-        case .Mult:
+        case .MULT:
             emit_byte(&curr_proc.chunk, byte(Op_Code.MULT))
-        case .Div:
+        case .DIV:
             emit_byte(&curr_proc.chunk, byte(Op_Code.DIV))
-        case .Mod:
+        case .MOD:
             emit_byte(&curr_proc.chunk, byte(Op_Code.MOD))
-        case .Mod_Floor:
+        case .MOD_FLOOR:
             emit_byte(&curr_proc.chunk, byte(Op_Code.MODF))
-        case .Eq:
+        case .EQ:
             emit_byte(&curr_proc.chunk, byte(Op_Code.EQ))
-        case .Neq:
+        case .NEQ:
             emit_byte(&curr_proc.chunk, byte(Op_Code.NEQ))
-        case .Lt:
+        case .LT:
             emit_byte(&curr_proc.chunk, byte(Op_Code.LSSR))
-        case .Gt:
+        case .GT:
             emit_byte(&curr_proc.chunk, byte(Op_Code.GRTR))
-        case .Leq:
+        case .LEQ:
             emit_byte(&curr_proc.chunk, byte(Op_Code.LEQ))
-        case .Geq:
+        case .GEQ:
             emit_byte(&curr_proc.chunk, byte(Op_Code.GEQ))
-        case .Logical_And:
+        case .LOGICAL_AND:
             emit_byte(&curr_proc.chunk, byte(Op_Code.LAND))
-        case .Logical_Or:
+        case .LOGICAL_OR:
             emit_byte(&curr_proc.chunk, byte(Op_Code.LOR))
         }
     case ^ast.Unary_Expression:
         compile_expression(comp, curr_proc, e.expr.derived_expression)
         #partial switch e.op.type {
-        case .Minus:
+        case .MINUS:
             emit_byte(&curr_proc.chunk, byte(Op_Code.NEG))
-        case .Not:
+        case .NOT:
             emit_byte(&curr_proc.chunk, byte(Op_Code.NOT))
         }
     case ^ast.Expression_List:
@@ -512,29 +547,29 @@ compile_expression :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, expr
         }
     case ^ast.Literal:
         #partial switch e.type {
-        case .Integer:
+        case .INTEGER:
             lit_val, _ := strconv.parse_i64(e.value)
-            val := object.Object{ .Integer, lit_val, false, 0 }
+            val := object.Object{ .INTEGER, lit_val, false, 0 }
             emit_constant(&curr_proc.chunk, val)
-        case .Unsigned_Integer:
+        case .UNSIGNED_INTEGER:
             lit_val, _ := strconv.parse_u64(strings.trim_suffix(e.value, "u"))
-            val := object.Object{ .Unsigned_Integer, lit_val, false, 0 }
+            val := object.Object{ .UNSIGNED_INTEGER, lit_val, false, 0 }
             emit_constant(&curr_proc.chunk, val)
-        case .Float:
+        case .FLOAT:
             lit_val, _ := strconv.parse_f64(e.value)
-            val := object.Object{ .Float, lit_val, false, 0 }
+            val := object.Object{ .FLOAT, lit_val, false, 0 }
             emit_constant(&curr_proc.chunk, val)
-        case .True, .False:
+        case .TRUE, .FALSE:
             lit_val, _ := strconv.parse_bool(e.value)
-            val := object.Object{ .Boolean, lit_val, false, 0 }
+            val := object.Object{ .BOOLEAN, lit_val, false, 0 }
             emit_constant(&curr_proc.chunk, val)
-        case .String:
+        case .STRING:
             lit_val := strings.trim(e.value, "\"")
-            val := object.Object{ .String, lit_val, false, 0 }
+            val := object.Object{ .STRING, lit_val, false, 0 }
             emit_constant(&curr_proc.chunk, val)
-        case .Rune:
+        case .RUNE:
             lit_val, _ := utf8.decode_rune(strings.trim(e.value, "'"))
-            val := object.Object{ .Rune, lit_val, false, 0 }
+            val := object.Object{ .RUNE, lit_val, false, 0 }
             emit_constant(&curr_proc.chunk, val)
         }
     case ^ast.Identifier:
@@ -608,28 +643,28 @@ emit_constant_zero :: proc(chunk: ^code.Chunk, type: ast.Type_Specifier) {
     #partial switch t in type.derived_type {
     case ^ast.Builtin_Type:
         #partial switch t.type {
-        case .Type_Integer:
-            val.type = .Integer
+        case .TYPE_INTEGER:
+            val.type = .INTEGER
             val.value = i64(0)
-        case .Type_Unsigned_Integer:
-            val.type = .Unsigned_Integer
+        case .TYPE_UNSIGNED_INTEGER:
+            val.type = .UNSIGNED_INTEGER
             val.value = u64(0)
-        case .Type_Float:
-            val.type = .Float
+        case .TYPE_FLOAT:
+            val.type = .FLOAT
             val.value = f64(0)
-        case .Type_Boolean:
-            val.type = .Boolean
+        case .TYPE_BOOLEAN:
+            val.type = .BOOLEAN
             val.value = false
-        case .Type_String:
-            val.type = .String
+        case .TYPE_STRING:
+            val.type = .STRING
             val.value = ""
-        case .Type_Rune:
-            val.type = .Rune
+        case .TYPE_RUNE:
+            val.type = .RUNE
             val.value = rune(0)
         }
     case ^ast.Array_Type:
         arr := make_array(t^, true)
-        val.type = object.Value_Kind.Array
+        val.type = object.Value_Kind.ARRAY
         val.value = arr
     }
 
@@ -692,7 +727,7 @@ end_scope :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, is_proc_scope
     for i := len(comp.locals) - 1; i >= 0; i -= 1 {
         if len(comp.locals) > 0 && comp.locals[i].scope >= comp.curr_scope {
             val := pop(&comp.locals)
-            if val.type == object.Value_Kind.Array {
+            if val.type == object.Value_Kind.ARRAY {
                 arr := val.value.(object.Array)
                 delete(arr.data)
             }

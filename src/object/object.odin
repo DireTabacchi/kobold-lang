@@ -20,14 +20,14 @@ Global :: struct {
 }
 
 Value_Kind :: enum {
-    Nil,
-    Integer,
-    Unsigned_Integer,
-    Float,
-    Boolean,
-    String,
-    Rune,
-    Array,
+    NIL,
+    INTEGER,
+    UNSIGNED_INTEGER,
+    FLOAT,
+    BOOLEAN,
+    STRING,
+    RUNE,
+    ARRAY,
 }
 
 Value_Type :: union {
@@ -48,43 +48,43 @@ Array :: struct {
 
 value_kind :: proc(tok_type: tokenizer.Token_Kind) -> Value_Kind {
     #partial switch tok_type {
-    case .Type_Integer:
-        return Value_Kind.Integer
-    case .Type_Unsigned_Integer:
-        return Value_Kind.Unsigned_Integer
-    case .Type_Float:
-        return Value_Kind.Float
-    case .Type_Boolean:
-        return Value_Kind.Boolean
-    case .Type_String:
-        return Value_Kind.String
-    case .Type_Rune:
-        return Value_Kind.Rune
+    case .TYPE_INTEGER:
+        return Value_Kind.INTEGER
+    case .TYPE_UNSIGNED_INTEGER:
+        return Value_Kind.UNSIGNED_INTEGER
+    case .TYPE_FLOAT:
+        return Value_Kind.FLOAT
+    case .TYPE_BOOLEAN:
+        return Value_Kind.BOOLEAN
+    case .TYPE_STRING:
+        return Value_Kind.STRING
+    case .TYPE_RUNE:
+        return Value_Kind.RUNE
     }
-    return Value_Kind.Nil
+    return Value_Kind.NIL
 }
 
 value_from_token_kind :: proc(val_type: tokenizer.Token_Kind, mutable: bool) -> Object {
     obj: Object
     obj.mutable = mutable
     #partial switch val_type {
-    case .Type_Integer:
-        obj.type = .Integer
+    case .TYPE_INTEGER:
+        obj.type = .INTEGER
         obj.value = i64(0)
-    case .Type_Unsigned_Integer:
-        obj.type = .Unsigned_Integer
+    case .TYPE_UNSIGNED_INTEGER:
+        obj.type = .UNSIGNED_INTEGER
         obj.value = u64(0)
-    case .Type_Float:
-        obj.type = .Float
+    case .TYPE_FLOAT:
+        obj.type = .FLOAT
         obj.value = 0.0
-    case .Type_Boolean:
-        obj.type = .Boolean
+    case .TYPE_BOOLEAN:
+        obj.type = .BOOLEAN
         obj.value = false
-    case .Type_String:
-        obj.type = .String
+    case .TYPE_STRING:
+        obj.type = .STRING
         obj.value = ""
-    case .Type_Rune:
-        obj.type = .Rune
+    case .TYPE_RUNE:
+        obj.type = .RUNE
         obj.value = rune(0)
     }
 

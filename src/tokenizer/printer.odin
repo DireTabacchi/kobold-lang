@@ -8,7 +8,7 @@ print :: proc(tokens: []tokenizer.Token) {
     fmt.println( "----------------------------------------------------------------------------")
     for token in tokens {
         lit: string
-        if token.type == .Doc_Comment {
+        if token.type == .DOC_COMMENT {
             lit = token.text[:17]
         } else {
             lit = token.text

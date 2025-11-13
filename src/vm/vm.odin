@@ -32,7 +32,7 @@ Virtual_Machine :: struct {
     builtin_procs: [dynamic]^proc_lib.Builtin_Proc,
     local_count: int,
 
-    gc: GarbageCollector,
+    gc: Garbage_Collector,
 }
 
 vm_init :: proc(vm: ^Virtual_Machine, main_proc: ^proc_lib.Procedure, procs: []^proc_lib.Procedure) {
@@ -60,7 +60,7 @@ vm_destroy :: proc(vm: ^Virtual_Machine) {
     for f := vm.frame_count-1; f >= 0; f -= 1 {
         frame := vm.frames[f]
         for frame.sp > frame.bp {
-            if vm.stack[frame.sp].type == object.Value_Kind.Array {
+            if vm.stack[frame.sp].type == object.Value_Kind.ARRAY {
                 arr := vm.stack[frame.sp].value.(object.Array)
                 delete(arr.data)
             }
@@ -98,7 +98,7 @@ run :: proc(vm: ^Virtual_Machine) {
             push_val: ^object.Object = nil
             if arr_val, is_arr := val.value.(object.Array); is_arr {
                 push_val = new(object.Object)
-                push_val.type = object.Value_Kind.Array
+                push_val.type = object.Value_Kind.ARRAY
                 push_arr: object.Array
                 push_arr.data = make([]object.Object, arr_val.len)
                 copy(push_arr.data, arr_val.data)
@@ -157,7 +157,7 @@ run :: proc(vm: ^Virtual_Machine) {
             get_array_elem(vm)
             //print_stack(vm)
         case byte(Op_Code.RET):
-            if frame.procedure.type == proc_lib.Proc_Type.Proc {
+            if frame.procedure.type == proc_lib.Proc_Type.PROC {
                 exec_return(vm)
                 //print_stack(vm)
                 collect(&vm.gc)
@@ -180,7 +180,7 @@ run :: proc(vm: ^Virtual_Machine) {
 build_array :: proc(vm: ^Virtual_Machine) {
     size := read_u16(vm)
     val := new(object.Object)
-    val.type = object.Value_Kind.Array
+    val.type = object.Value_Kind.ARRAY
     arr: object.Array
     arr.data = make([]object.Object, size)
     val_type := stack_pop(vm)
@@ -247,7 +247,7 @@ exec_builtin_call :: proc(vm: ^Virtual_Machine) {
     }
     //print_stack(vm)
     ret_val := callee.exec(..args)
-    if callee.return_type != object.Value_Kind.Nil {
+    if callee.return_type != object.Value_Kind.NIL {
         push_val := new_clone(ret_val)
         track_object(&vm.gc, push_val)
         stack_push(vm, push_val)
@@ -257,7 +257,7 @@ exec_builtin_call :: proc(vm: ^Virtual_Machine) {
 
 exec_return :: proc(vm: ^Virtual_Machine) {
     frame := vm.frames[vm.frame_count-1]
-    if frame.procedure.return_type != object.Value_Kind.Nil {
+    if frame.procedure.return_type != object.Value_Kind.NIL {
         ret_val := stack_pop(vm)
         caller_frame := vm.frames[vm.frame_count-2]
         caller_frame.sp = frame.bp
@@ -348,167 +348,167 @@ exec_binary_op :: proc(vm: ^Virtual_Machine, op: byte) {
     switch op {
     case byte(Op_Code.ADD):
         #partial switch a.type {
-        case .Integer:
+        case .INTEGER:
             res.value = a.value.(i64) + b.value.(i64)
-        case .Unsigned_Integer:
+        case .UNSIGNED_INTEGER:
             res.value = a.value.(u64) + b.value.(u64)
-        case .Float:
+        case .FLOAT:
             res.value = a.value.(f64) + b.value.(f64)
         }
         res.type = a.type
 
     case byte(Op_Code.SUB):
         #partial switch a.type {
-        case .Integer:
+        case .INTEGER:
             res.value = a.value.(i64) - b.value.(i64)
-        case .Unsigned_Integer:
+        case .UNSIGNED_INTEGER:
             res.value = a.value.(u64) - b.value.(u64)
-        case .Float:
+        case .FLOAT:
             res.value = a.value.(f64) - b.value.(f64)
         }
         res.type = a.type
 
     case byte(Op_Code.MULT):
         #partial switch a.type {
-        case .Integer:
+        case .INTEGER:
             res.value = a.value.(i64) * b.value.(i64)
-        case .Unsigned_Integer:
+        case .UNSIGNED_INTEGER:
             res.value = a.value.(u64) * b.value.(u64)
-        case .Float:
+        case .FLOAT:
             res.value = a.value.(f64) * b.value.(f64)
         }
         res.type = a.type
 
     case byte(Op_Code.DIV):
         #partial switch a.type {
-        case .Integer:
+        case .INTEGER:
             res.value = a.value.(i64) / b.value.(i64)
-        case .Unsigned_Integer:
+        case .UNSIGNED_INTEGER:
             res.value = a.value.(u64) / b.value.(u64)
-        case .Float:
+        case .FLOAT:
             res.value = a.value.(f64) / b.value.(f64)
         }
         res.type = a.type
 
     case byte(Op_Code.MOD):
         #partial switch a.type {
-        case .Integer:
+        case .INTEGER:
             res.value = a.value.(i64) % b.value.(i64)
-        case .Unsigned_Integer:
+        case .UNSIGNED_INTEGER:
             res.value = a.value.(u64) % b.value.(u64)
         }
         res.type = a.type
 
     case byte(Op_Code.MODF):
         #partial switch a.type {
-        case .Integer:
+        case .INTEGER:
             res.value = a.value.(i64) %% b.value.(i64)
-        case .Unsigned_Integer:
+        case .UNSIGNED_INTEGER:
             res.value = a.value.(u64) %% b.value.(u64)
         }
         res.type = a.type
 
     case byte(Op_Code.EQ):
         #partial switch a.type {
-        case .Integer:
+        case .INTEGER:
             res.value = a.value.(i64) == b.value.(i64)
-        case .Unsigned_Integer:
+        case .UNSIGNED_INTEGER:
             res.value = a.value.(u64) == b.value.(u64)
-        case .Float:
+        case .FLOAT:
             res.value = a.value.(f64) == b.value.(f64)
-        case .String:
+        case .STRING:
             res.value = a.value.(string) == b.value.(string)
-        case .Rune:
+        case .RUNE:
             res.value = a.value.(rune) == b.value.(rune)
-        case .Boolean:
+        case .BOOLEAN:
             res.value = a.value.(bool) == b.value.(bool)
         }
-        res.type = .Boolean
+        res.type = .BOOLEAN
 
     case byte(Op_Code.NEQ):
         #partial switch a.type {
-        case .Integer:
+        case .INTEGER:
             res.value = a.value.(i64) != b.value.(i64)
-        case .Unsigned_Integer:
+        case .UNSIGNED_INTEGER:
             res.value = a.value.(u64) != b.value.(u64)
-        case .Float:
+        case .FLOAT:
             res.value = a.value.(f64) != b.value.(f64)
-        case .String:
+        case .STRING:
             res.value = a.value.(string) != b.value.(string)
-        case .Rune:
+        case .RUNE:
             res.value = a.value.(rune) != b.value.(rune)
-        case .Boolean:
+        case .BOOLEAN:
             res.value = a.value.(bool) != b.value.(bool)
         }
-        res.type = .Boolean
+        res.type = .BOOLEAN
 
     case byte(Op_Code.LSSR):
         #partial switch a.type {
-        case .Integer:
+        case .INTEGER:
             res.value = a.value.(i64) < b.value.(i64)
-        case .Unsigned_Integer:
+        case .UNSIGNED_INTEGER:
             res.value = a.value.(u64) < b.value.(u64)
-        case .Float:
+        case .FLOAT:
             res.value = a.value.(f64) < b.value.(f64)
-        case .String:
+        case .STRING:
             res.value = a.value.(string) < b.value.(string)
-        case .Rune:
+        case .RUNE:
             res.value = a.value.(rune) < b.value.(rune)
         }
-        res.type = .Boolean
+        res.type = .BOOLEAN
 
     case byte(Op_Code.GRTR):
         #partial switch a.type {
-        case .Integer:
+        case .INTEGER:
             res.value = a.value.(i64) > b.value.(i64)
-        case .Unsigned_Integer:
+        case .UNSIGNED_INTEGER:
             res.value = a.value.(u64) > b.value.(u64)
-        case .Float:
+        case .FLOAT:
             res.value = a.value.(f64) > b.value.(f64)
-        case .String:
+        case .STRING:
             res.value = a.value.(string) > b.value.(string)
-        case .Rune:
+        case .RUNE:
             res.value = a.value.(rune) > b.value.(rune)
         }
-        res.type = .Boolean
+        res.type = .BOOLEAN
 
     case byte(Op_Code.LEQ):
         #partial switch a.type {
-        case .Integer:
+        case .INTEGER:
             res.value = a.value.(i64) <= b.value.(i64)
-        case .Unsigned_Integer:
+        case .UNSIGNED_INTEGER:
             res.value = a.value.(u64) <= b.value.(u64)
-        case .Float:
+        case .FLOAT:
             res.value = a.value.(f64) <= b.value.(f64)
-        case .String:
+        case .STRING:
             res.value = a.value.(string) <= b.value.(string)
-        case .Rune:
+        case .RUNE:
             res.value = a.value.(rune) <= b.value.(rune)
         }
-        res.type = .Boolean
+        res.type = .BOOLEAN
 
     case byte(Op_Code.GEQ):
         #partial switch a.type {
-        case .Integer:
+        case .INTEGER:
             res.value = a.value.(i64) >= b.value.(i64)
-        case .Unsigned_Integer:
+        case .UNSIGNED_INTEGER:
             res.value = a.value.(u64) >= b.value.(u64)
-        case .Float:
+        case .FLOAT:
             res.value = a.value.(f64) >= b.value.(f64)
-        case .String:
+        case .STRING:
             res.value = a.value.(string) >= b.value.(string)
-        case .Rune:
+        case .RUNE:
             res.value = a.value.(rune) >= b.value.(rune)
         }
-        res.type = .Boolean
+        res.type = .BOOLEAN
 
     case byte(Op_Code.LAND):
         res.value = a.value.(bool) && b.value.(bool)
-        res.type = .Boolean
+        res.type = .BOOLEAN
 
     case byte(Op_Code.LOR):
         res.value = a.value.(bool) || b.value.(bool)
-        res.type = .Boolean
+        res.type = .BOOLEAN
     }
 
     track_object(&vm.gc, res)
@@ -520,9 +520,9 @@ exec_unary_op :: proc(vm: ^Virtual_Machine, op: byte) {
     switch op {
     case byte(Op_Code.NEG):
         #partial switch val.type {
-        case .Integer:
+        case .INTEGER:
             val.value = -val.value.(i64)
-        case .Float:
+        case .FLOAT:
             val.value = -val.value.(f64)
         }
     case byte(Op_Code.NOT):
@@ -546,7 +546,7 @@ print_stack :: proc(vm: ^Virtual_Machine) {
     for i := frame.sp-1; i >= 0; i -= 1 {
         val := vm.stack[i]
         #partial switch val.type {
-        case object.Value_Kind.Array:
+        case object.Value_Kind.ARRAY:
             fmt.printfln("[ Array %p <refs: %d> ]", raw_data(val.value.(object.Array).data), val.ref_count)
         case:
             fmt.printfln("[ %v <refs: %d> ]", val.value, val.ref_count)

@@ -8,8 +8,8 @@ import "kobold:code"
 import "kobold:object"
 
 Proc_Type :: enum {
-    Script,
-    Proc,
+    SCRIPT,
+    PROC,
 }
 
 Procedure :: struct {
@@ -51,16 +51,16 @@ new_proc :: proc{
 
 builtin_procs := map[string]Builtin_Proc{
     "println" = Builtin_Proc{
-        "println", 1, true, object.Value_Kind.Nil, builtin_println,
+        "println", 1, true, object.Value_Kind.NIL, builtin_println,
     },
     "print" = Builtin_Proc{
-        "print", 1, true, object.Value_Kind.Nil, builtin_print,
+        "print", 1, true, object.Value_Kind.NIL, builtin_print,
     },
     "len" = Builtin_Proc{
-        "len", 1, false, object.Value_Kind.Integer, builtin_array_len,
+        "len", 1, false, object.Value_Kind.INTEGER, builtin_array_len,
     },
     "clock" = Builtin_Proc{
-        "clock", 0, false, object.Value_Kind.Integer, builtin_clock,
+        "clock", 0, false, object.Value_Kind.INTEGER, builtin_clock,
     },
 }
 
@@ -72,7 +72,7 @@ builtin_print :: proc(args: ..object.Object) -> object.Object {
     for arg in args {
         // TODO: Find better way to handle escapes
         #partial switch arg.type {
-        case .String:
+        case .STRING:
             if arg.value.(string) == `\n` {
                 fmt.print("\n")
             } else {
@@ -82,14 +82,14 @@ builtin_print :: proc(args: ..object.Object) -> object.Object {
             fmt.print(arg.value)
         }
     }
-    return object.Object{ object.Value_Kind.Nil, i64(0), false, 0 }
+    return object.Object{ object.Value_Kind.NIL, i64(0), false, 0 }
 }
 
 builtin_println :: proc(args: ..object.Object) -> object.Object {
     for arg in args {
         // TODO: See builtin_print
         #partial switch arg.type {
-        case .String:
+        case .STRING:
             if arg.value.(string) == `\n` {
                 fmt.print("\n")
             } else {
@@ -101,18 +101,18 @@ builtin_println :: proc(args: ..object.Object) -> object.Object {
     }
     fmt.print("\n")
 
-    return object.Object{ object.Value_Kind.Nil, i64(0), false, 0 }
+    return object.Object{ object.Value_Kind.NIL, i64(0), false, 0 }
 }
 
 builtin_array_len :: proc(args: ..object.Object) -> object.Object {
     arg := args[0]
     arr := arg.value.(object.Array)
-    ret_val := object.Object{ object.Value_Kind.Integer, i64(arr.len), false, 0 }
+    ret_val := object.Object{ object.Value_Kind.INTEGER, i64(arr.len), false, 0 }
     return ret_val
 }
 
 builtin_clock :: proc(args: ..object.Object) -> object.Object {
     now := time.now()
-    ret_val := object.Object{ object.Value_Kind.Integer, i64(time.time_to_unix_nano(now)), false, 0 }
+    ret_val := object.Object{ object.Value_Kind.INTEGER, i64(time.time_to_unix_nano(now)), false, 0 }
     return ret_val
 }

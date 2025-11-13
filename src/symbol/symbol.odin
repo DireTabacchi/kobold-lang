@@ -25,14 +25,19 @@ Symbol_Type :: union {
     ^Builtin_Symbol_Type,
     ^Identifier_Symbol_Type,
     ^Array_Symbol_Type,
+    ^Alias_Symbol_Type,
 }
 
 Builtin_Symbol_Type :: struct {
     type: tokenizer.Token_Kind,
 }
 
+Alias_Symbol_Type :: struct {
+    subtype: Symbol_Type,
+}
+
 Identifier_Symbol_Type :: struct {
-    type: string,
+    typename: string,
 }
 
 Array_Symbol_Type :: struct {
@@ -40,7 +45,7 @@ Array_Symbol_Type :: struct {
     length: int,
 }
 
-make_parser_symbol_type :: proc(pos: tokenizer.Pos, type_spec: ^ast.Type_Specifier) -> Symbol_Type {
+make_symbol_type_pos :: proc(pos: tokenizer.Pos, type_spec: ^ast.Type_Specifier) -> Symbol_Type {
     type: Symbol_Type
     #partial switch t in type_spec.derived_type {
     case ^ast.Builtin_Type:
@@ -55,17 +60,47 @@ make_parser_symbol_type :: proc(pos: tokenizer.Pos, type_spec: ^ast.Type_Specifi
         case ^ast.Array_Type:
             error_msg(pos, "multi-dimensional arrays are not yet supported")
             type.(^Array_Symbol_Type).type, _ = mem.new(Builtin_Symbol_Type)
-            type.(^Array_Symbol_Type).type.(^Builtin_Symbol_Type).type = tokenizer.Token_Kind.Array
+            type.(^Array_Symbol_Type).type.(^Builtin_Symbol_Type).type = tokenizer.Token_Kind.ARRAY
         }
     case ^ast.Identifier_Type:
         type, _ = mem.new(Identifier_Symbol_Type)
-        type.(^Identifier_Symbol_Type).type = t.identifier
+        type.(^Identifier_Symbol_Type).typename = t.identifier
+    case ^ast.Alias_Type:
+        type, _ = mem.new(Alias_Symbol_Type)
+        type.(^Alias_Symbol_Type).subtype = make_symbol_type_pos(pos, t.subtype)
+    }
+    return type
+}
+
+make_symbol_type_no_pos :: proc(type_spec: ^ast.Type_Specifier) -> Symbol_Type {
+    type: Symbol_Type
+    #partial switch t in type_spec.derived_type {
+    case ^ast.Builtin_Type:
+        type, _ = mem.new(Builtin_Symbol_Type)
+        type.(^Builtin_Symbol_Type).type = t.type
+    case ^ast.Array_Type:
+        type, _ = mem.new(Array_Symbol_Type)
+        #partial switch arr_type in t.type.derived_type {
+        case ^ast.Builtin_Type:
+            type.(^Array_Symbol_Type).type, _ = mem.new(Builtin_Symbol_Type)
+            type.(^Array_Symbol_Type).type.(^Builtin_Symbol_Type).type = arr_type.type
+        case ^ast.Array_Type:
+            type.(^Array_Symbol_Type).type, _ = mem.new(Builtin_Symbol_Type)
+            type.(^Array_Symbol_Type).type.(^Builtin_Symbol_Type).type = tokenizer.Token_Kind.ARRAY
+        }
+    case ^ast.Identifier_Type:
+        type, _ = mem.new(Identifier_Symbol_Type)
+        type.(^Identifier_Symbol_Type).typename = t.identifier
+    case ^ast.Alias_Type:
+        type, _ = mem.new(Alias_Symbol_Type)
+        type.(^Alias_Symbol_Type).subtype = make_symbol_type_no_pos(t.subtype)
     }
     return type
 }
 
 make_symbol_type :: proc{
-    make_parser_symbol_type,
+    make_symbol_type_pos,
+    make_symbol_type_no_pos,
 }
 
 symbol_destroy :: proc(sym: ^Symbol) {
@@ -80,6 +115,9 @@ symbol_type_destroy :: proc(sym_type: ^Symbol_Type) {
         symbol_type_destroy(&t.type)
         free(t)
     case ^Identifier_Symbol_Type:
+        free(t)
+    case ^Alias_Symbol_Type:
+        symbol_type_destroy(&t.subtype)
         free(t)
     }
 }
@@ -98,8 +136,12 @@ type_specifier_from_symbol_type :: proc(st: Symbol_Type) -> ^ast.Type_Specifier 
         return at
     case ^Identifier_Symbol_Type:
         it := ast.new(ast.Identifier_Type, ZERO_POS, ZERO_POS)
-        it.identifier = sym_type.type
+        it.identifier = sym_type.typename
         return it
+    case ^Alias_Symbol_Type:
+        at := ast.new(ast.Alias_Type, ZERO_POS, ZERO_POS)
+        at.subtype = type_specifier_from_symbol_type(sym_type.subtype)
+        return at
     }
     it := ast.new(ast.Builtin_Type, ZERO_POS, ZERO_POS)
     return it

@@ -9,7 +9,7 @@ Chunk :: struct {
 
 chunk_destroy :: proc(ch: ^Chunk) {
     for c in ch.constants {
-        if c.type == object.Value_Kind.Array {
+        if c.type == object.Value_Kind.ARRAY {
             arr, _ := c.value.(object.Array)
             delete(arr.data)
         }

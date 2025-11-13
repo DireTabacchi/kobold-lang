@@ -64,102 +64,102 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
                 advance(t)
                 switch ch {
                 case ':':
-                    kind = .Colon
+                    kind = .COLON
                 case '=':
                     if t.ch == '=' {
                         advance(t)
-                        kind = .Eq
+                        kind = .EQ
                     } else if t.ch == '>' {
                         advance(t)
-                        kind = .Fat_Arrow
+                        kind = .FAT_ARROW
                     } else {
-                        kind = .Assign
+                        kind = .ASSIGN
                     }
                 case ';':
-                    kind = .Semicolon
+                    kind = .SEMICOLON
                 case',':
-                    kind = .Comma
+                    kind = .COMMA
                 case '{':
-                    kind = .L_Brace
+                    kind = .L_BRACE
                 case '}':
-                    kind = .R_Brace
+                    kind = .R_BRACE
                 case '(':
-                    kind = .L_Paren
+                    kind = .L_PAREN
                 case ')':
-                    kind = .R_Paren
+                    kind = .R_PAREN
                 case '[':
-                    kind = .L_Bracket
+                    kind = .L_BRACKET
                 case ']':
-                    kind = .R_Bracket
+                    kind = .R_BRACKET
                 case '.':
                     if t.ch == '.' {
                         peeked := peek(t)
                         if peeked == '<' {
                             advance(t)
                             advance(t)
-                            kind = .Range_Ex
+                            kind = .RANGE_EX
                         } else if peeked == '=' {
                             advance(t)
                             advance(t)
-                            kind = .Range_Inc
+                            kind = .RANGE_INC
                         }
                     } else {
-                        kind = .Dot
+                        kind = .DOT
                     }
                 case '!':
                     if t.ch == '=' {
                         advance(t)
-                        kind = .Neq
+                        kind = .NEQ
                     } else {
-                        kind = .Not
+                        kind = .NOT
                     }
                 case '&':
                     if t.ch == '&' {
                         advance(t)
-                        kind = .Logical_And
+                        kind = .LOGICAL_AND
                     }
                 case '|':
                     if t.ch == '|' {
                         advance(t)
-                        kind = .Logical_Or
+                        kind = .LOGICAL_OR
                     }
                 case '<':
                     if t.ch == '=' {
                         advance(t)
-                        kind = .Leq
+                        kind = .LEQ
                     } else {
-                        kind = .Lt
+                        kind = .LT
                     }
                 case '>':
                     if t.ch == '=' {
                         advance(t)
-                        kind = .Geq
+                        kind = .GEQ
                     } else {
-                        kind = .Gt
+                        kind = .GT
                     }
                 case '+':
                     if t.ch == '=' {
                         advance(t)
-                        kind = .Assign_Add
+                        kind = .ASSIGN_ADD
                     } else {
-                        kind = .Plus
+                        kind = .PLUS
                     }
                 case '-':
                     if t.ch == '>' {
                         advance(t)
-                        kind = .Arrow
+                        kind = .ARROW
                     } else if t.ch == '=' {
                         advance(t)
-                        kind = .Assign_Minus
+                        kind = .ASSIGN_MINUS
                     } else {
-                        kind = .Minus
+                        kind = .MINUS
                     }
                 case '*':
                     if t.ch == '=' {
                         advance(t)
-                        kind = .Assign_Mult
+                        kind = .ASSIGN_MULT
                     } else {
-                        kind = .Mult
+                        kind = .MULT
                     }
                 case '/':
                     if t.ch == '/' {
@@ -167,7 +167,7 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
                         continue
                     } else if t.ch == '!' {
                         advance(t)
-                        kind = .Doc_Comment
+                        kind = .DOC_COMMENT
                         break
                     } else if t.ch == '*' {
                         advance(t)
@@ -175,33 +175,33 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
                         continue
                     } else if t.ch == '=' {
                         advance(t)
-                        kind = .Assign_Div
+                        kind = .ASSIGN_DIV
                     } else {
-                        kind = .Div
+                        kind = .DIV
                     }
                 case '%':
                     if t.ch == '%' {
                         advance(t)
                         if t.ch == '=' {
                             advance(t)
-                            kind = .Assign_Mod_Floor
+                            kind = .ASSIGN_MOD_FLOOR
                         } else {
-                            kind = .Mod_Floor
+                            kind = .MOD_FLOOR
                         }
                     } else if t.ch == '=' {
                         advance(t)
-                        kind = .Assign_Mod
+                        kind = .ASSIGN_MOD
                     } else {
-                        kind = .Mod
+                        kind = .MOD
                     }
                 case '\'':
-                    kind = .Rune
+                    kind = .RUNE
                     lit = scan_rune(t)
                 case '"':
-                    kind = .String
+                    kind = .STRING
                     lit = scan_string(t)
                 case:
-                    kind = .Invalid
+                    kind = .INVALID
                     lit = utf8.runes_to_string({ch})
                 }
             }
@@ -213,7 +213,7 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
 
         pos = Pos{offset, t.line, offset - t.line_offset + 1}
 
-        if kind == .Doc_Comment {
+        if kind == .DOC_COMMENT {
             lit = doc_comment(t, t.offset)
         }
 
@@ -225,14 +225,14 @@ scan :: proc(t: ^Tokenizer) -> [dynamic]Token {
 
 scan_number :: proc(t: ^Tokenizer) -> (Token_Kind, string) {
     offset := t.offset
-    kind := Token_Kind.Integer
+    kind := Token_Kind.INTEGER
     for is_digit(t.ch) {
         advance(t)
     }
 
     if is_alpha(t.ch) && t.ch == 'u' {
         advance(t)
-        kind = Token_Kind.Unsigned_Integer
+        kind = Token_Kind.UNSIGNED_INTEGER
     }
 
     scan_fraction(t, &kind)
@@ -246,7 +246,7 @@ scan_fraction :: proc(t: ^Tokenizer, kind: ^Token_Kind) {
         if peek(t) == '.' {
             return
         }
-        kind^ = .Float
+        kind^ = .FLOAT
         advance(t)
         for is_digit(t.ch) {
             advance(t)
@@ -303,102 +303,102 @@ scan_keyword_or_identifier :: proc(t: ^Tokenizer, start: int) -> (Token_Kind, st
     advance(t)
     switch ch := t.src[start]; ch {
     case 'a':
-        return check_keyword(t, 1, 4, offset, "rray", .Array)
+        return check_keyword(t, 1, 4, offset, "rray", .ARRAY)
     case 'b':
         if t.offset - start > 1 {
             switch t.src[start+1] {
             case 'o':
-                return check_keyword(t, 2, 2, offset, "ol", .Type_Boolean)
+                return check_keyword(t, 2, 2, offset, "ol", .TYPE_BOOLEAN)
             case 'r':
-                return check_keyword(t, 2, 3, offset, "eak", .Break)
+                return check_keyword(t, 2, 3, offset, "eak", .BREAK)
             }
         }
     case 'c':
         if t.offset - start > 1 {
             switch t.src[start+1] {
             case 'a':
-                return check_keyword(t, 2, 2, offset, "se", .Case)
+                return check_keyword(t, 2, 2, offset, "se", .CASE)
             case 'o':
-                return check_keyword(t, 2, 3, offset, "nst", .Const)
+                return check_keyword(t, 2, 3, offset, "nst", .CONST)
             }
         }
     case 'e':
         if t.offset - start > 1 {
             switch t.src[start+1] {
             case 'n':
-                return check_keyword(t, 2, 2, offset, "um", .Enum)
+                return check_keyword(t, 2, 2, offset, "um", .ENUM)
             case 'l':
-                return check_keyword(t, 2, 2, offset, "se", .Else)
+                return check_keyword(t, 2, 2, offset, "se", .ELSE)
             }
         }
     case 'f':
         if t.offset - start > 1 {
             switch t.src[start+1] {
             case 'a':
-                return check_keyword(t, 2, 3, offset, "lse", .False)
+                return check_keyword(t, 2, 3, offset, "lse", .FALSE)
             case 'l':
-                return check_keyword(t, 2, 3, offset, "oat", .Type_Float)
+                return check_keyword(t, 2, 3, offset, "oat", .TYPE_FLOAT)
             case 'o':
-                return check_keyword(t, 2, 1, offset, "r", .For)
+                return check_keyword(t, 2, 1, offset, "r", .FOR)
             }
         }
     case 'i':
         if t.offset - start > 1 {
             switch t.src[start+1] {
             case 'f':
-                return check_keyword(t, 1, 1, offset, "f", .If)
+                return check_keyword(t, 1, 1, offset, "f", .IF)
             case 'n':
                 if t.offset - start > 2 {
                     switch t.src[start+2] {
                     case 't':
-                        return check_keyword(t, 2, 1, offset, "t", .Type_Integer)
+                        return check_keyword(t, 2, 1, offset, "t", .TYPE_INTEGER)
                     }
                 } else {
-                    return check_keyword(t, 1, 1, offset, "n", .In)
+                    return check_keyword(t, 1, 1, offset, "n", .IN)
                 }
             }
         }
     case 'm':
-        return check_keyword(t, 1, 2, offset, "ap", .Map)
+        return check_keyword(t, 1, 2, offset, "ap", .MAP)
     case 'p':
-        return check_keyword(t, 1, 3, offset, "roc", .Proc)
+        return check_keyword(t, 1, 3, offset, "roc", .PROC)
     case 'r':
         switch t.src[start+1] {
         case 'e':
             switch t.src[start+2] {
             case 'c':
-                return check_keyword(t, 3, 3, offset, "ord", .Record)
+                return check_keyword(t, 3, 3, offset, "ord", .RECORD)
             case 't':
-                return check_keyword(t, 3, 3, offset, "urn", .Return)
+                return check_keyword(t, 3, 3, offset, "urn", .RETURN)
             }
         case 'u':
-            return check_keyword(t, 2, 2, offset, "ne", .Type_Rune)
+            return check_keyword(t, 2, 2, offset, "ne", .TYPE_RUNE)
         }
     case 's':
         switch t.src[start+1] {
         case 'e':
-            return check_keyword(t, 2, 1, offset, "t", .Set)
+            return check_keyword(t, 2, 1, offset, "t", .SET)
         case 't':
-            return check_keyword(t, 2, 4, offset, "ring", .Type_String)
+            return check_keyword(t, 2, 4, offset, "ring", .TYPE_STRING)
         case 'w':
-            return check_keyword(t, 2, 4, offset, "itch", .Switch)
+            return check_keyword(t, 2, 4, offset, "itch", .SWITCH)
         }
     case 't':
         switch t.src[start+1] {
         case 'r':
-            return check_keyword(t, 2, 2, offset, "ue", .True)
+            return check_keyword(t, 2, 2, offset, "ue", .TRUE)
         case 'y':
-            return check_keyword(t, 2, 2, offset, "pe", .Type)
+            return check_keyword(t, 2, 2, offset, "pe", .TYPE)
         }
     case 'u':
-        return check_keyword(t, 1, 3, offset, "int", .Type_Unsigned_Integer)
+        return check_keyword(t, 1, 3, offset, "int", .TYPE_UNSIGNED_INTEGER)
     case 'v':
-        return check_keyword(t, 1, 2, offset, "ar", .Var)
+        return check_keyword(t, 1, 2, offset, "ar", .VAR)
     }
 
     lit := t.src[offset:t.offset]
 
-    return .Identifier, lit
+    return .IDENTIFIER, lit
 }
 
 check_keyword :: proc(t: ^Tokenizer, start, rest_length, offset: int, rest: string, kind: Token_Kind) -> (Token_Kind, string) {
@@ -409,7 +409,7 @@ check_keyword :: proc(t: ^Tokenizer, start, rest_length, offset: int, rest: stri
         return kind, t.src[offset:t.offset]
     }
 
-    return .Identifier, t.src[offset:t.offset]
+    return .IDENTIFIER, t.src[offset:t.offset]
 }
 
 advance :: proc(t: ^Tokenizer) {

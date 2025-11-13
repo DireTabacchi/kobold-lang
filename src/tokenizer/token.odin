@@ -13,170 +13,170 @@ Pos :: struct {
 }
 
 Token_Kind :: enum {
-    Invalid,                // Unknown token/Error token
+    INVALID,                // Unknown token/Error token
     EOF,
     // Single-character tokens
-    Semicolon,              // ;
-    L_Brace,                // {
-    R_Brace,                // }
-    L_Bracket,              // [
-    R_Bracket,              // ]
-    L_Paren,                // (
-    R_Paren,                // )
-    Comma,                  // ,
-    Dot,                    // .
+    SEMICOLON,              // ;
+    L_BRACE,                // {
+    R_BRACE,                // }
+    L_BRACKET,              // [
+    R_BRACKET,              // ]
+    L_PAREN,                // (
+    R_PAREN,                // )
+    COMMA,                  // ,
+    DOT,                    // .
 
     // Operators
-    Colon,                  // :
-    In,                     // in
-    Arrow,                  // ->
-    Fat_Arrow,              // =>
+    COLON,                  // :
+    IN,                     // in
+    ARROW,                  // ->
+    FAT_ARROW,              // =>
     // -- Assignment
-    Assign,                 // =
-    Assign_Add,             // +=
-    Assign_Minus,           // -=
-    Assign_Mult,            // *=
-    Assign_Div,             // /=
-    Assign_Mod,             // %=
-    Assign_Mod_Floor,       // %%=
+    ASSIGN,                 // =
+    ASSIGN_ADD,             // +=
+    ASSIGN_MINUS,           // -=
+    ASSIGN_MULT,            // *=
+    ASSIGN_DIV,             // /=
+    ASSIGN_MOD,             // %=
+    ASSIGN_MOD_FLOOR,       // %%=
     // -- Arithmetic
-    Minus,                  // -
-    Plus,                   // +
-    Mult,                   // *
-    Div,                    // /
-    Mod,                    // %
-    Mod_Floor,              // %%
+    MINUS,                  // -
+    PLUS,                   // +
+    MULT,                   // *
+    DIV,                    // /
+    MOD,                    // %
+    MOD_FLOOR,              // %%
     // -- Logical
-    Not,                    // !
-    Logical_And,            // &&
-    Logical_Or,             // ||
-    Eq,                     // ==
-    Neq,                    // !=
-    Lt,                     // <
-    Gt,                     // >
-    Leq,                    // <=
-    Geq,                    // >=
+    NOT,                    // !
+    LOGICAL_AND,            // &&
+    LOGICAL_OR,             // ||
+    EQ,                     // ==
+    NEQ,                    // !=
+    LT,                     // <
+    GT,                     // >
+    LEQ,                    // <=
+    GEQ,                    // >=
     // -- Range
-    Range_Ex,               // ..<
-    Range_Inc,              // ..=
+    RANGE_EX,               // ..<
+    RANGE_INC,              // ..=
 
     // Literals
-    Identifier,             // var_name
-    Integer,                // 1234
-    Unsigned_Integer,       // 1234u
-    Float,                  // 12.34
-    Rune,                   // 'K'
-    String,                 // "Kobold"
-    True,                   // true
-    False,                  // false
-    Doc_Comment,            // /! the doc comment !/
+    IDENTIFIER,             // var_name
+    INTEGER,                // 1234
+    UNSIGNED_INTEGER,       // 1234u
+    FLOAT,                  // 12.34
+    RUNE,                   // 'K'
+    STRING,                 // "Kobold"
+    TRUE,                   // true
+    FALSE,                  // false
+    DOC_COMMENT,            // /! the doc comment !/
 
     // Keywords
     // -- Declarations
-    Var,                    // var
-    Const,                  // const
-    Type,                   // type
-    Enum,                   // enum
-    Record,                 // record
-    Proc,                   // proc
-    Array,                  // array
-    Map,                    // map
-    Set,                    // set
+    VAR,                    // var
+    CONST,                  // const
+    TYPE,                   // type
+    ENUM,                   // enum
+    RECORD,                 // record
+    PROC,                   // proc
+    ARRAY,                  // array
+    MAP,                    // map
+    SET,                    // set
     // -- Control flow
-    Return,                 // return
-    For,                    // for
-    If,                     // if
-    Else,                   // else
-    Switch,                 // switch
-    Case,                   // case
-    Break,                  // break
+    RETURN,                 // return
+    FOR,                    // for
+    IF,                     // if
+    ELSE,                   // else
+    SWITCH,                 // switch
+    CASE,                   // case
+    BREAK,                  // break
     // -- Types
-    Type_Integer,           // int
-    Type_Unsigned_Integer,  // uint
-    Type_Float,             // float
-    Type_Boolean,           // bool
-    Type_Rune,              // rune
-    Type_String,            // string
+    TYPE_INTEGER,           // int
+    TYPE_UNSIGNED_INTEGER,  // uint
+    TYPE_FLOAT,             // float
+    TYPE_BOOLEAN,           // bool
+    TYPE_RUNE,              // rune
+    TYPE_STRING,            // string
 }
 
 token_list := [Token_Kind]string {
-    .Invalid = "invalid",
+    .INVALID = "invalid",
     .EOF = "EOF",
-    .Semicolon = ";",
-    .L_Brace = "{",
-    .R_Brace = "}",
-    .L_Bracket = "[",
-    .R_Bracket = "]",
-    .L_Paren = "(",
-    .R_Paren = ")",
-    .Comma = ",",
-    .Dot = ".",
+    .SEMICOLON = ";",
+    .L_BRACE = "{",
+    .R_BRACE = "}",
+    .L_BRACKET = "[",
+    .R_BRACKET = "]",
+    .L_PAREN = "(",
+    .R_PAREN = ")",
+    .COMMA = ",",
+    .DOT = ".",
 
-    .Colon = ":",
-    .In = "in",
-    .Arrow = "->",
-    .Fat_Arrow = "=>",
+    .COLON = ":",
+    .IN = "in",
+    .ARROW = "->",
+    .FAT_ARROW = "=>",
 
-    .Assign = "=",
-    .Assign_Add = "+=",
-    .Assign_Minus = "-=",
-    .Assign_Mult = "*=",
-    .Assign_Div = "/=",
-    .Assign_Mod = "%=",
-    .Assign_Mod_Floor = "%%=",
+    .ASSIGN = "=",
+    .ASSIGN_ADD = "+=",
+    .ASSIGN_MINUS = "-=",
+    .ASSIGN_MULT = "*=",
+    .ASSIGN_DIV = "/=",
+    .ASSIGN_MOD = "%=",
+    .ASSIGN_MOD_FLOOR = "%%=",
 
-    .Minus = "-",
-    .Plus = "+",
-    .Mult = "*",
-    .Div = "/",
-    .Mod = "%",
-    .Mod_Floor = "%%",
+    .MINUS = "-",
+    .PLUS = "+",
+    .MULT = "*",
+    .DIV = "/",
+    .MOD = "%",
+    .MOD_FLOOR = "%%",
 
-    .Not = "!",
-    .Logical_And = "&&",
-    .Logical_Or = "||",
-    .Eq = "==",
-    .Neq = "!=",
-    .Lt = "<",
-    .Gt = ">",
-    .Leq = "<=",
-    .Geq = ">=",
+    .NOT = "!",
+    .LOGICAL_AND = "&&",
+    .LOGICAL_OR = "||",
+    .EQ = "==",
+    .NEQ = "!=",
+    .LT = "<",
+    .GT = ">",
+    .LEQ = "<=",
+    .GEQ = ">=",
 
-    .Range_Ex = "..<",
-    .Range_Inc = "..=",
+    .RANGE_EX = "..<",
+    .RANGE_INC = "..=",
 
-    .Identifier = "identifier",
-    .Integer = "integer",
-    .Unsigned_Integer = "unsigned integer",
-    .Float = "float",
-    .Rune = "rune",
-    .String = "string",
-    .True = "true",
-    .False = "false",
-    .Doc_Comment = "doc comment",
+    .IDENTIFIER = "identifier",
+    .INTEGER = "integer",
+    .UNSIGNED_INTEGER = "unsigned integer",
+    .FLOAT = "float",
+    .RUNE = "rune",
+    .STRING = "string",
+    .TRUE = "true",
+    .FALSE = "false",
+    .DOC_COMMENT = "doc comment",
 
-    .Var = "var",
-    .Const = "const",
-    .Type = "type",
-    .Enum = "enum",
-    .Record = "record",
-    .Proc = "proc",
-    .Array = "array",
-    .Map = "map",
-    .Set = "set",
+    .VAR = "var",
+    .CONST = "const",
+    .TYPE = "type",
+    .ENUM = "enum",
+    .RECORD = "record",
+    .PROC = "proc",
+    .ARRAY = "array",
+    .MAP = "map",
+    .SET = "set",
 
-    .Return = "return",
-    .For = "for",
-    .If = "if",
-    .Else = "else",
-    .Switch = "switch",
-    .Case = "case",
-    .Break = "break",
+    .RETURN = "return",
+    .FOR = "for",
+    .IF = "if",
+    .ELSE = "else",
+    .SWITCH = "switch",
+    .CASE = "case",
+    .BREAK = "break",
 
-    .Type_Integer = "int",
-    .Type_Unsigned_Integer = "uint",
-    .Type_Float = "float",
-    .Type_Boolean = "bool",
-    .Type_Rune = "rune",
-    .Type_String = "string",
+    .TYPE_INTEGER = "int",
+    .TYPE_UNSIGNED_INTEGER = "uint",
+    .TYPE_FLOAT = "float",
+    .TYPE_BOOLEAN = "bool",
+    .TYPE_RUNE = "rune",
+    .TYPE_STRING = "string",
 }

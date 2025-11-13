@@ -78,30 +78,30 @@ parse :: proc(p: ^Parser) {
 
 parse_statement :: proc(p: ^Parser) -> ^ast.Statement {
     #partial switch p.curr_tok.type {
-    case .Var, .Const, .Proc, .Type:
+    case .VAR, .CONST, .PROC, .TYPE:
         decl_stmt := parse_decl_statement(p)
         if decl_stmt == nil {
             error_msg(p, p.curr_tok.pos, "error parsing declaration statement")
             return nil
         }
         return decl_stmt
-    case .If:
+    case .IF:
         return parse_if_statement(p)
-    case .For:
+    case .FOR:
         return parse_for_statement(p)
-    case .Break:
+    case .BREAK:
         return parse_break_statement(p)
-    case .Return:
+    case .RETURN:
         return parse_return_statement(p)
     case:
         start_pos := p.curr_tok.pos
         start_idx := p.curr_idx
         for {
             #partial switch p.curr_tok.type {
-            case .Assign..=.Assign_Mod_Floor:
+            case .ASSIGN..=.ASSIGN_MOD_FLOOR:
                 reset_to_token(p, start_idx)
                 return parse_assign_statement(p, true)
-            case .Semicolon:
+            case .SEMICOLON:
                 reset_to_token(p, start_idx)
                 return parse_expr_statement(p)
             case .EOF:
@@ -117,13 +117,13 @@ parse_statement :: proc(p: ^Parser) -> ^ast.Statement {
 parse_decl_statement :: proc(p: ^Parser) -> ^ast.Statement {
     decl_type := p.curr_tok.type
     #partial switch decl_type {
-    case .Const:
+    case .CONST:
         return parse_const_decl(p)
-    case .Var:
+    case .VAR:
         return parse_var_decl(p)
-    case .Proc:
+    case .PROC:
         return parse_proc_decl(p)
-    case .Type:
+    case .TYPE:
         return parse_type_decl(p)
     }
     return nil
@@ -132,20 +132,20 @@ parse_decl_statement :: proc(p: ^Parser) -> ^ast.Statement {
 parse_const_decl :: proc(p: ^Parser) -> ^ast.Statement {
     start_pos := p.curr_tok.pos
     advance_token(p)
-    ident := expect_token(p, .Identifier)
-    expect_token(p, .Colon)
+    ident := expect_token(p, .IDENTIFIER)
+    expect_token(p, .COLON)
     type := parse_type_specifier(p)
-    assign_tok := expect_token(p, .Assign)
+    assign_tok := expect_token(p, .ASSIGN)
     val: ^ast.Expression = nil
     #partial switch p.curr_tok.type {
-    case .L_Brace:
-        expect_token(p, .L_Brace)
+    case .L_BRACE:
+        expect_token(p, .L_BRACE)
         val = parse_expr_list(p)
-        expect_token(p, .R_Brace)
+        expect_token(p, .R_BRACE)
     case:
         val = parse_expression(p)
     }
-    semi_tok := expect_token(p, .Semicolon)
+    semi_tok := expect_token(p, .SEMICOLON)
     cd := ast.new(ast.Declarator, start_pos, end_pos(p.prev_tok))
     cd.name = ident.text
     cd.mutable = false
@@ -205,12 +205,12 @@ parse_const_decl :: proc(p: ^Parser) -> ^ast.Statement {
 parse_var_decl :: proc(p: ^Parser) -> ^ast.Statement {
     start_pos := p.curr_tok.pos
     advance_token(p)
-    ident := expect_token(p, .Identifier)
-    expect_token(p, .Colon)
+    ident := expect_token(p, .IDENTIFIER)
+    expect_token(p, .COLON)
     type := parse_type_specifier(p)
     val: ^ast.Expression = nil
     val_pos := p.curr_tok.pos
-    if _, is_assign := check_token(p, .Assign); is_assign {
+    if _, is_assign := check_token(p, .ASSIGN); is_assign {
         advance_token(p)
 
         if type == nil {
@@ -218,9 +218,9 @@ parse_var_decl :: proc(p: ^Parser) -> ^ast.Statement {
         } else {
             #partial switch t in type.derived_type {
             case ^ast.Array_Type:
-                expect_token(p, .L_Brace)
+                expect_token(p, .L_BRACE)
                 val = parse_expr_list(p)
-                expect_token(p, .R_Brace)
+                expect_token(p, .R_BRACE)
             case ^ast.Builtin_Type:
                 val = parse_expression(p)
             case ^ast.Identifier_Type:
@@ -229,7 +229,7 @@ parse_var_decl :: proc(p: ^Parser) -> ^ast.Statement {
         }
     }
 
-    expect_token(p, .Semicolon)
+    expect_token(p, .SEMICOLON)
 
     if val == nil {
         val = ast.new(ast.Invalid_Expression, val_pos, end_pos(p.prev_tok))
@@ -307,17 +307,17 @@ parse_proc_decl :: proc(p: ^Parser) -> ^ast.Statement {
     start_pos := p.curr_tok.pos
     advance_token(p)
     name := parse_identifier(p)
-    expect_token(p, .L_Paren)
+    expect_token(p, .L_PAREN)
     increment_scope(p)
     params := parse_parameter_list(p)
-    expect_token(p, .R_Paren)
+    expect_token(p, .R_PAREN)
     return_type: ^ast.Type_Specifier = nil
-    if p.curr_tok.type == .Arrow {
+    if p.curr_tok.type == .ARROW {
         advance_token(p)
         return_type = parse_type_specifier(p)
     }
 
-    expect_token(p, .L_Brace)
+    expect_token(p, .L_BRACE)
     body := parse_block(p, false)
     decrement_scope(p)
 
@@ -335,7 +335,7 @@ parse_proc_decl :: proc(p: ^Parser) -> ^ast.Statement {
     }
 
     proc_sym_type, _ := mem.new(symbol.Builtin_Symbol_Type)
-    proc_sym_type.type = tokenizer.Token_Kind.Proc
+    proc_sym_type.type = tokenizer.Token_Kind.PROC
     proc_symbol := symbol.Symbol{ pd.name, proc_sym_type, false, p.curr_scope, len(p.proc_table) }
     append(&p.sym_table.symbols, proc_symbol)
 
@@ -347,19 +347,29 @@ parse_proc_decl :: proc(p: ^Parser) -> ^ast.Statement {
 
 parse_type_decl :: proc(p: ^Parser) -> ^ast.Statement {
     start_pos := p.curr_tok.pos
-    expect_token(p, .Type)
-    name := expect_token(p, .Identifier)
-    expect_token(p, .Colon)
+    expect_token(p, .TYPE)
+    name := expect_token(p, .IDENTIFIER)
+    expect_token(p, .COLON)
     decld_type := p.curr_tok
     type: ^ast.Type_Specifier = nil
     #partial switch decld_type.type {
-    case .Type_Integer ..= .Type_String:
+    case .TYPE_INTEGER ..= .TYPE_STRING:
         //advance_token(p)
         ts := parse_type_specifier(p)
-        expect_token(p, .Semicolon)
+        expect_token(p, .SEMICOLON)
         at := ast.new(ast.Alias_Type, name.pos, end_pos(p.prev_tok))
-        at.alias = name.text
-        at.type = ts
+        at.subtype = ts
+        type = at
+
+        symbol_type := symbol.make_symbol_type(start_pos, type)
+        type_symbol := symbol.Symbol{ name.text, symbol_type, false, p.curr_scope, len(p.sym_table.symbols) }
+        append(&p.sym_table.symbols, type_symbol)
+
+    case .IDENTIFIER:
+        ts := parse_type_specifier(p)
+        expect_token(p, .SEMICOLON)
+        at := ast.new(ast.Alias_Type, name.pos, end_pos(p.prev_tok))
+        at.subtype = ts
         type = at
     }
     td := ast.new(ast.Type_Declarator, start_pos, end_pos(p.prev_tok))
@@ -371,10 +381,10 @@ parse_type_decl :: proc(p: ^Parser) -> ^ast.Statement {
 
 parse_parameter_list :: proc(p: ^Parser) -> []^ast.Statement {
     pl: [dynamic]^ast.Statement
-    for p.curr_tok.type != .R_Paren {
+    for p.curr_tok.type != .R_PAREN {
         start_pos := p.curr_tok.pos
-        param_name := expect_token(p, .Identifier)
-        expect_token(p, .Colon)
+        param_name := expect_token(p, .IDENTIFIER)
+        expect_token(p, .COLON)
         type_spec := parse_type_specifier(p)
 
         pd := ast.new(ast.Parameter_Declarator, start_pos, end_pos(p.prev_tok))
@@ -391,10 +401,10 @@ parse_parameter_list :: proc(p: ^Parser) -> []^ast.Statement {
         append(&p.sym_table.symbols, param_symbol)
 
         next_tok := peek_token(p)
-        if p.curr_tok.type == .Comma && next_tok.type == .R_Paren {
+        if p.curr_tok.type == .COMMA && next_tok.type == .R_PAREN {
             advance_token(p)
-        } else if next_tok.type == .Identifier {
-            expect_token(p, .Comma)
+        } else if next_tok.type == .IDENTIFIER {
+            expect_token(p, .COMMA)
         }
     }
     return pl[:]
@@ -408,7 +418,7 @@ parse_return_statement :: proc(p: ^Parser) -> ^ast.Statement {
         free(expr)
         expr = nil
     }
-    expect_token(p, .Semicolon)
+    expect_token(p, .SEMICOLON)
 
     rs := ast.new(ast.Return_Statement, start_pos, end_pos(p.prev_tok))
     rs.expr = expr
@@ -419,14 +429,14 @@ parse_return_statement :: proc(p: ^Parser) -> ^ast.Statement {
 // TODO: Improve error handling for for-statements. Perhaps start checker.
 parse_for_statement :: proc(p: ^Parser) -> ^ast.Statement {
     start_pos := p.curr_tok.pos
-    expect_token(p, .For)
+    expect_token(p, .FOR)
 
     increment_scope(p)
 
     append(&p.loop_scopes, p.curr_scope)
 
     start_idx := p.curr_idx
-    for p.curr_tok.type != .L_Brace && p.curr_tok.type != .Semicolon {
+    for p.curr_tok.type != .L_BRACE && p.curr_tok.type != .SEMICOLON {
         advance_token(p)
     }
 
@@ -437,22 +447,22 @@ parse_for_statement :: proc(p: ^Parser) -> ^ast.Statement {
     cond_expr: ^ast.Expression = nil
     cont_stmt: ^ast.Statement = nil
 
-    if tok_type == .L_Brace {
+    if tok_type == .L_BRACE {
         cond_expr = parse_expression(p)
         if _, invalid := cond_expr.derived_expression.(^ast.Invalid_Expression); invalid {
             ast.expression_destroy(cond_expr.derived_expression)
             cond_expr = nil
         }
-    } else if tok_type == .Semicolon {
+    } else if tok_type == .SEMICOLON {
         for_decl = parse_decl_statement(p)
         cond_expr = parse_expression(p)
-        expect_token(p, .Semicolon)
+        expect_token(p, .SEMICOLON)
     }
 
-    if p.curr_tok.type != .L_Brace {
+    if p.curr_tok.type != .L_BRACE {
         cont_stmt = parse_assign_statement(p, false)
     }
-    expect_token(p, .L_Brace)
+    expect_token(p, .L_BRACE)
     body := parse_block(p, true)
     fs := ast.new(ast.For_Statement, start_pos, end_pos(p.prev_tok))
     fs.decl = for_decl
@@ -468,7 +478,7 @@ parse_break_statement :: proc(p: ^Parser) -> ^ast.Statement {
     start_pos := p.curr_tok.pos
 
     advance_token(p)
-    expect_token(p, .Semicolon)
+    expect_token(p, .SEMICOLON)
     last_loop_scope_idx := len(p.loop_scopes) - 1
     breaking_scope := p.loop_scopes[last_loop_scope_idx]
     bs := ast.new(ast.Break_Statement, start_pos, end_pos(p.prev_tok))
@@ -481,10 +491,10 @@ parse_if_statement :: proc(p: ^Parser) -> ^ast.Statement {
     start_pos := p.curr_tok.pos
     advance_token(p)
     cond_expr := parse_expression(p)
-    expect_token(p, .L_Brace)
+    expect_token(p, .L_BRACE)
     consequent := parse_block(p, true)
     alt: ^ast.Statement = nil
-    if p.curr_tok.type == .Else {
+    if p.curr_tok.type == .ELSE {
         advance_token(p)
         alt = parse_else_if_statement(p)
     }
@@ -498,12 +508,12 @@ parse_if_statement :: proc(p: ^Parser) -> ^ast.Statement {
 parse_else_if_statement :: proc(p: ^Parser) -> ^ast.Statement {
     start_pos := p.curr_tok.pos
     tok := advance_token(p)
-    if tok.type == .If {
+    if tok.type == .IF {
         cond_expr := parse_expression(p)
-        expect_token(p, .L_Brace)
+        expect_token(p, .L_BRACE)
         consequent := parse_block(p, true)
         alt: ^ast.Statement = nil
-        if p.curr_tok.type == .Else {
+        if p.curr_tok.type == .ELSE {
             advance_token(p)
             alt = parse_else_if_statement(p)
         }
@@ -512,7 +522,7 @@ parse_else_if_statement :: proc(p: ^Parser) -> ^ast.Statement {
         ei.consequent = consequent
         ei.alternative = alt
         return ei
-    } else if tok.type == .L_Brace {
+    } else if tok.type == .L_BRACE {
         consequent := parse_block(p, true)
         es := ast.new(ast.Else_Statement, start_pos, end_pos(p.prev_tok))
         es.consequent = consequent
@@ -529,12 +539,12 @@ parse_block :: proc(p: ^Parser, do_scoping: bool) -> []^ast.Statement {
     }
     block: [dynamic]^ast.Statement
 
-    for p.curr_tok.type != .R_Brace {
+    for p.curr_tok.type != .R_BRACE {
         stmt := parse_statement(p)
         append(&block, stmt)
     }
 
-    expect_token(p, .R_Brace)
+    expect_token(p, .R_BRACE)
 
     if do_scoping {
         decrement_scope(p)
@@ -553,8 +563,9 @@ parse_assign_statement :: proc(p: ^Parser, expect_semicolon: bool) -> ^ast.State
             switch sym_type in sym.type {
             case ^symbol.Builtin_Symbol_Type:
             case ^symbol.Identifier_Symbol_Type:
+            case ^symbol.Alias_Symbol_Type:
             case ^symbol.Array_Symbol_Type:
-                if p.curr_tok.type == .L_Bracket {
+                if p.curr_tok.type == .L_BRACKET {
                     reset_to_token(p, start_idx)
                     free(ident)
                     ident = parse_accessor(p)
@@ -565,15 +576,15 @@ parse_assign_statement :: proc(p: ^Parser, expect_semicolon: bool) -> ^ast.State
     assign_tok := advance_token(p)
     expr := parse_expression(p)
     if expect_semicolon {
-        expect_token(p, .Semicolon)
+        expect_token(p, .SEMICOLON)
     }
     #partial switch assign_tok.type {
-    case .Assign:
+    case .ASSIGN:
         as := ast.new(ast.Assignment_Statement, start_pos, end_pos(p.prev_tok))
         as.ident = ident
         as.value = expr
         return as
-    case .Assign_Add..=.Assign_Mod_Floor:
+    case .ASSIGN_ADD ..= .ASSIGN_MOD_FLOOR:
         aos := ast.new(ast.Assignment_Operation_Statement, start_pos, end_pos(p.prev_tok))
         aos.ident = ident
         aos.op = assign_tok.type
@@ -593,36 +604,36 @@ expression_type :: proc(p: ^Parser, expr: ^ast.Expression) -> ^ast.Type_Specifie
         return ts
     case ^ast.Binary_Expression:
         #partial switch e.op.type {
-        case .Logical_And..=.Geq:
+        case .LOGICAL_AND ..= .GEQ:
             ts := ast.new(ast.Builtin_Type, e.start, e.end)
-            ts.type = .Type_Boolean
+            ts.type = .TYPE_BOOLEAN
             return ts
         case:
             return expression_type(p, e.left)
         }
     case ^ast.Unary_Expression:
         #partial switch e.op.type {
-        case .Not:
+        case .NOT:
             ts := ast.new(ast.Builtin_Type, e.start, e.end)
-            ts.type = .Type_Boolean
+            ts.type = .TYPE_BOOLEAN
             return ts
         }
         return expression_type(p, e.expr)
     case ^ast.Literal:
         type: tokenizer.Token_Kind
         #partial switch e.type {
-        case .Integer:
-            type = .Type_Integer
-        case .Unsigned_Integer:
-            type = .Type_Unsigned_Integer
-        case .True, .False:
-            type = .Type_Boolean
-        case .Float:
-            type = .Type_Float
-        case .Rune:
-            type = .Type_Rune
-        case .String:
-            type = .Type_String
+        case .INTEGER:
+            type = .TYPE_INTEGER
+        case .UNSIGNED_INTEGER:
+            type = .TYPE_UNSIGNED_INTEGER
+        case .TRUE, .FALSE:
+            type = .TYPE_BOOLEAN
+        case .FLOAT:
+            type = .TYPE_FLOAT
+        case .RUNE:
+            type = .TYPE_RUNE
+        case .STRING:
+            type = .TYPE_STRING
         case:
             it := ast.new(ast.Invalid_Type, e.start, e.end)
             return it
@@ -660,7 +671,7 @@ expression_type :: proc(p: ^Parser, expr: ^ast.Expression) -> ^ast.Type_Specifie
         if bt, valid := proc_info.return_type.derived_type.(^ast.Builtin_Type); valid {
             ts.type = bt.type
         } else {
-            ts.type = tokenizer.Token_Kind.Invalid
+            ts.type = tokenizer.Token_Kind.INVALID
         }
         return ts
     case ^ast.Array_Accessor:
@@ -679,33 +690,33 @@ expression_type :: proc(p: ^Parser, expr: ^ast.Expression) -> ^ast.Type_Specifie
 }
 
 parse_type_specifier :: proc(p: ^Parser) -> ^ast.Type_Specifier {
-    if p.curr_tok.type == .Assign {
+    if p.curr_tok.type == .ASSIGN {
         return nil
     }
 
     start_pos := p.curr_tok.pos
     t := advance_token(p)
     #partial switch t.type {
-    case .Type_Integer..=.Type_String:
+    case .TYPE_INTEGER ..= .TYPE_STRING:
         bt := ast.new(ast.Builtin_Type, start_pos, end_pos(p.prev_tok))
         bt.type = t.type
         return bt
-    case .Identifier:
+    case .IDENTIFIER:
         it := ast.new(ast.Identifier_Type, start_pos, end_pos(p.prev_tok))
         it.identifier = t.text
         return it
-    case .Array:
-        expect_token(p, .L_Bracket)
+    case .ARRAY:
+        expect_token(p, .L_BRACKET)
         cap_tok := advance_token(p)
-        if cap_tok.type != .Integer && cap_tok.type != .Unsigned_Integer {
+        if cap_tok.type != .INTEGER && cap_tok.type != .UNSIGNED_INTEGER {
             return nil
         }
         cap_val: int
         #partial switch cap_tok.type {
-        case .Integer, .Unsigned_Integer:
+        case .INTEGER, .UNSIGNED_INTEGER:
             cap_val, _ = strconv.parse_int(cap_tok.text)
         }
-        expect_token(p, .R_Bracket)
+        expect_token(p, .R_BRACKET)
         arr_type := parse_type_specifier(p)
         at := ast.new(ast.Array_Type, start_pos, end_pos(p.prev_tok))
         at.length = cap_val
@@ -725,7 +736,7 @@ parse_expr_statement :: proc(p: ^Parser) -> ^ast.Statement {
         return nil
     }
 
-    expect_token(p, .Semicolon)
+    expect_token(p, .SEMICOLON)
 
     es := ast.new(ast.Expression_Statement, start_pos, end_pos(p.prev_tok))
     es.expr = expr
@@ -764,7 +775,7 @@ parse_binary_expr :: proc(p: ^Parser, curr_prec: int) -> ^ast.Expression {
                 break
             }
             #partial switch p.curr_tok.type {
-            case .Minus..=.Geq:
+            case .MINUS ..= .GEQ:
                 advance_token(p)
                 rhs_expr := parse_binary_expr(p, op_prec)
                 be := ast.new(ast.Binary_Expression, start_pos, end_pos(p.prev_tok))
@@ -782,7 +793,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^ast.Expression {
     start_pos := p.curr_tok.pos
 
     #partial switch p.curr_tok.type {
-    case .Minus, .Not:
+    case .MINUS, .NOT:
         op := p.curr_tok
         advance_token(p)
         expr := parse_unary_expr(p)
@@ -799,21 +810,21 @@ parse_unary_expr :: proc(p: ^Parser) -> ^ast.Expression {
 
 parse_primary :: proc(p: ^Parser) -> ^ast.Expression {
     #partial switch p.curr_tok.type {
-    case .L_Paren:
+    case .L_PAREN:
         advance_token(p)
         expr := parse_expression(p)
-        expect_token(p, .R_Paren) // Note: consume R_Paren
+        expect_token(p, .R_PAREN) // Note: consume R_Paren
         return expr
-    case .Integer, .Unsigned_Integer, .Float, .True, .False, .String, .Rune:
+    case .INTEGER, .UNSIGNED_INTEGER, .FLOAT, .TRUE, .FALSE, .STRING, .RUNE:
         lit := parse_literal(p)
         return lit
-    case .Identifier:
+    case .IDENTIFIER:
         #partial switch tok := peek_token(p); tok.type {
-        case .L_Paren:
+        case .L_PAREN:
             return parse_proc_call(p)
-        case .Dot:
+        case .DOT:
             return parse_ident_selector(p)
-        case .L_Bracket:
+        case .L_BRACKET:
             return parse_accessor(p)
         case:
             return parse_identifier(p)
@@ -828,10 +839,10 @@ parse_ident_selector :: proc(p: ^Parser) -> ^ast.Expression {
     start_pos := p.curr_tok.pos
 
     ident := advance_token(p)
-    expect_token(p, .Dot)
+    expect_token(p, .DOT)
     field: ^ast.Expression
     #partial switch tok := peek_token(p); tok.type {
-    case .Dot:
+    case .DOT:
         field = parse_ident_selector(p)
 
     case:
@@ -847,9 +858,9 @@ parse_accessor :: proc(p: ^Parser) -> ^ast.Expression {
     start_pos := p.curr_tok.pos
 
     ident := advance_token(p)
-    expect_token(p, .L_Bracket)
+    expect_token(p, .L_BRACKET)
     index := parse_primary(p)
-    expect_token(p, .R_Bracket)
+    expect_token(p, .R_BRACKET)
 
     sym, resolved := resolve_symbol(p, ident.text)
     if !resolved {
@@ -862,6 +873,7 @@ parse_accessor :: proc(p: ^Parser) -> ^ast.Expression {
         arr_acc.ident = ident.text
         arr_acc.index = index
         return arr_acc
+
     case:
         errorf_msg(p, ident.pos, "`%s` is not a type that can be index-accessed", ident.text)
     }
@@ -874,9 +886,9 @@ parse_proc_call :: proc(p: ^Parser) -> ^ast.Expression {
     start_pos := p.curr_tok.pos
 
     name := advance_token(p)
-    expect_token(p, .L_Paren)
+    expect_token(p, .L_PAREN)
     arg_list := parse_expr_list(p)
-    expect_token(p, .R_Paren)
+    expect_token(p, .R_PAREN)
 
     pc := ast.new(ast.Proc_Call, start_pos, end_pos(p.prev_tok))
     pc.name = name.text
@@ -894,7 +906,7 @@ parse_proc_call :: proc(p: ^Parser) -> ^ast.Expression {
 parse_expr_list :: proc(p: ^Parser) -> ^ast.Expression {
     start_pos := p.curr_tok.pos
     expr_list: [dynamic]^ast.Expression
-    for p.curr_tok.type != .R_Paren && p.curr_tok.type != .R_Brace {
+    for p.curr_tok.type != .R_PAREN && p.curr_tok.type != .R_BRACE {
         pos := p.curr_tok.pos
         expr := parse_expression(p)
         if expr == nil {
@@ -902,7 +914,7 @@ parse_expr_list :: proc(p: ^Parser) -> ^ast.Expression {
         }
         append(&expr_list, expr)
 
-        if p.curr_tok.type == .Comma { // Optional trailing comma
+        if p.curr_tok.type == .COMMA { // Optional trailing comma
             advance_token(p)
         }
     }
@@ -917,7 +929,7 @@ parse_literal :: proc(p: ^Parser) -> ^ast.Expression {
     start_pos := p.curr_tok.pos
 
     #partial switch p.curr_tok.type {
-    case .Integer, .Unsigned_Integer, .Float, .True, .False, .String, .Rune:
+    case .INTEGER, .UNSIGNED_INTEGER, .FLOAT, .TRUE, .FALSE, .STRING, .RUNE:
         tok := advance_token(p)
         lit := ast.new(ast.Literal, start_pos, end_pos(p.prev_tok))
         lit.type = tok.type
@@ -930,7 +942,7 @@ parse_literal :: proc(p: ^Parser) -> ^ast.Expression {
 
 parse_identifier :: proc(p: ^Parser) -> ^ast.Expression {
     start_pos := p.curr_tok.pos
-    if tok := expect_token(p, .Identifier); tok.type == .Identifier {
+    if tok := expect_token(p, .IDENTIFIER); tok.type == .IDENTIFIER {
         ident := ast.new(ast.Identifier, start_pos, end_pos(p.prev_tok))
         ident.name = tok.text
         return ident
@@ -999,15 +1011,15 @@ Op_Precs :: enum {
 
 precedence :: proc(token: tokenizer.Token) -> int {
     #partial switch token.type {
-    case .Logical_And:
+    case .LOGICAL_AND:
         return 1
-    case .Logical_Or:
+    case .LOGICAL_OR:
         return 2
-    case .Eq..=.Geq:
+    case .EQ ..= .GEQ:
         return 3
-    case .Minus, .Plus:
+    case .MINUS, .PLUS:
         return 4
-    case .Mult, .Div, .Mod, .Mod_Floor:
+    case .MULT, .DIV, .MOD, .MOD_FLOOR:
         return 5
     case:
         return 0
