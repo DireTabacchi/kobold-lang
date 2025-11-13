@@ -1,7 +1,11 @@
 type EmployeeId: uint;
 
+type ManagerId: EmployeeId;
+
 //var new_emp: EmployeeId = 25191002; // should error
 
 var new_emp: EmployeeId = 25191002u;
+var manager: ManagerId = 85592338u;
 
 println("Employee ID: ", new_emp);
+println("Manager ID: ", manager);

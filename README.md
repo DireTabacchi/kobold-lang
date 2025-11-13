@@ -112,6 +112,19 @@ false   // bool (Boolean)
 
 The zero value of the `array` is the number of elements the `array` holds set to the zero value of their type.
 
+### Type Alias
+
+A type alias can be defined by using the `type` keyword, followed by the alias for the type, and then the type being
+aliased.
+
+```
+type Foo: uint;
+
+var bar: Foo = 25191002u;
+
+println("bar: ", bar);      // prints "bar: 25191002"
+```
+
 ## Operators
 
 The operators are, in order of high-to-low precedence, line-by-line:
@@ -438,6 +451,7 @@ The following is a list of items that are planned for the language before hittin
     - [ ] `matrix`
     - [ ] Collection Accessing
 - [ ] User-defined Types
+    - [ ] `type`-alias
     - [ ] `enum`
     - [ ] `record`
     - [ ] `range`
