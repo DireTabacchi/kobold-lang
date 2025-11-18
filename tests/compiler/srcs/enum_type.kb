@@ -9,6 +9,9 @@ type NpcState: enum {
 };
 
 var current_state: NpcState = NpcState.IDLE;
+//var test: int = 32;
+// TODO: deduce type of enums
+var prev_state := NpcState.PATROLLING;
 
 if current_state == NpcState.DRINKING {
     println("What you drinking there?");
@@ -16,4 +19,8 @@ if current_state == NpcState.DRINKING {
     println("Lunchtime, eh?");
 } else {
     println("Nothing to report.");
+}
+
+if current_state == NpcState.IDLE && prev_state == NpcState.PATROLLING {
+    println("Taking a wee break, sir.");
 }

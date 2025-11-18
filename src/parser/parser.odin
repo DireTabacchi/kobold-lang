@@ -666,6 +666,20 @@ expression_type :: proc(p: ^Parser, expr: ^ast.Expression) -> ^ast.Type_Specifie
         }
         it := ast.new(ast.Invalid_Type, expr.start, expr.end)
         return it
+    case ^ast.Selector:
+        ident := e.ident
+        sym, exists := resolve_symbol(p, ident)
+        if exists {
+            #partial switch sym_type in sym.type {
+            case ^symbol.Enum_Symbol_Type:
+                ts := ast.new(ast.Identifier_Type, expr.start, expr.end)
+                ts.identifier = ident
+                return ts
+            }
+        }
+        it := ast.new(ast.Invalid_Type, expr.start, expr.end)
+        return it
+
     case ^ast.Proc_Call:
         name := e.name
         sym, exists := symbol.symbol_exists(name, p.sym_table^)
@@ -746,16 +760,16 @@ parse_enum_decl :: proc(p: ^Parser) -> ^ast.Type_Specifier {
     #partial switch tok.type {
     case .ENUM:
         expect_token(p, .L_BRACE)
-        enum_fields := make(map[string]int)
+        enum_fields := make(map[string]i64)
         curr_tok := advance_token(p)
-        field_val := 0
+        field_val: i64 = 0
         for curr_tok.type != .R_BRACE {
             #partial switch curr_tok.type {
             case .IDENTIFIER:
                 if p.curr_tok.type == .ASSIGN {
                     advance_token(p)
                     field_val_tok := advance_token(p)
-                    field_val, _ = strconv.parse_int(field_val_tok.text, 10)
+                    field_val, _ = strconv.parse_i64(field_val_tok.text, 10)
                 }
                 enum_fields[curr_tok.text] = field_val
                 field_val += 1

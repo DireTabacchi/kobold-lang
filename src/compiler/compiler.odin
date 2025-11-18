@@ -111,6 +111,59 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt:
         emit_byte(&curr_proc.chunk, byte(set_op))
         emit_bytes(&curr_proc.chunk, idx)
 
+    case ^ast.Procedure_Declarator:
+        new_proc := proc_lib.new_proc(st.name, byte(len(st.params)), proc_lib.Proc_Type.PROC)
+        if st.return_type == nil {
+            new_proc.return_type = object.Value_Kind.NIL
+        } else {
+            #partial switch return_type in st.return_type.derived_type {
+            case ^ast.Builtin_Type:
+                #partial switch return_type.type {
+                case .TYPE_INTEGER:
+                    new_proc.return_type = object.Value_Kind.INTEGER
+                case .TYPE_UNSIGNED_INTEGER:
+                    new_proc.return_type = object.Value_Kind.UNSIGNED_INTEGER
+                case .TYPE_FLOAT:
+                    new_proc.return_type = object.Value_Kind.FLOAT
+                case .TYPE_BOOLEAN:
+                    new_proc.return_type = object.Value_Kind.BOOLEAN
+                case .TYPE_RUNE:
+                    new_proc.return_type = object.Value_Kind.RUNE
+                case .TYPE_STRING:
+                    new_proc.return_type = object.Value_Kind.STRING
+                }
+            case ^ast.Array_Type:
+                new_proc.return_type = object.Value_Kind.ARRAY
+            case:
+                fmt.eprintfln("[%d:%d] unknown return type", st.start.line, st.start.col)
+                return
+            }
+        }
+        begin_scope(comp)
+        append(&comp.proc_scopes, comp.curr_scope)
+        for param in st.params {
+            if param_stmt, ok := param.derived_statement.(^ast.Parameter_Declarator); ok {
+                make_local(comp, param_stmt.name, param_stmt.type, false)
+            }
+        }
+        for s in st.body {
+            compile_statement(comp, new_proc, s.derived_statement)
+        }
+        pop(&comp.proc_scopes)
+        end_scope(comp, new_proc, true)
+
+        last_st := st.body[len(st.body)-1]
+        if _, is_return := last_st.derived_statement.(^ast.Return_Statement); !is_return {
+            emit_byte(&new_proc.chunk, byte(Op_Code.RET))
+        }
+
+        proc_sym_type, _ := mem.new(symbol.Builtin_Symbol_Type)
+        proc_sym_type.type = tokenizer.Token_Kind.PROC
+        sym := symbol.Symbol{ new_proc.name, proc_sym_type, false, comp.curr_scope, len(comp.procs) }
+
+        append(&comp.sym_table.symbols, sym)
+        append(&comp.procs, new_proc)
+
     case ^ast.Type_Declarator:
         symbol_type := symbol.make_symbol_type(st.type)
         type_symbol := symbol.Symbol{ st.name, symbol_type, false, comp.curr_scope, len(comp.sym_table.symbols) }
@@ -288,65 +341,13 @@ compile_statement :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, stmt:
         break_stat.loc = emit_jump(&curr_proc.chunk, byte(Op_Code.JMP))
         append(&comp.break_stats, break_stat)
 
-    case ^ast.Procedure_Declarator:
-        new_proc := proc_lib.new_proc(st.name, byte(len(st.params)), proc_lib.Proc_Type.PROC)
-        if st.return_type == nil {
-            new_proc.return_type = object.Value_Kind.NIL
-        } else {
-            //return_type, ok := st.return_type.derived_type.(^ast.Builtin_Type)
-            #partial switch return_type in st.return_type.derived_type {
-            case ^ast.Builtin_Type:
-                #partial switch return_type.type {
-                case .TYPE_INTEGER:
-                    new_proc.return_type = object.Value_Kind.INTEGER
-                case .TYPE_UNSIGNED_INTEGER:
-                    new_proc.return_type = object.Value_Kind.UNSIGNED_INTEGER
-                case .TYPE_FLOAT:
-                    new_proc.return_type = object.Value_Kind.FLOAT
-                case .TYPE_BOOLEAN:
-                    new_proc.return_type = object.Value_Kind.BOOLEAN
-                case .TYPE_RUNE:
-                    new_proc.return_type = object.Value_Kind.RUNE
-                case .TYPE_STRING:
-                    new_proc.return_type = object.Value_Kind.STRING
-                }
-            case ^ast.Array_Type:
-                new_proc.return_type = object.Value_Kind.ARRAY
-            case:
-                fmt.eprintfln("[%d:%d] unknown return type", st.start.line, st.start.col)
-                return
-            }
-        }
-        begin_scope(comp)
-        append(&comp.proc_scopes, comp.curr_scope)
-        for param in st.params {
-            if param_stmt, ok := param.derived_statement.(^ast.Parameter_Declarator); ok {
-                make_local(comp, param_stmt.name, param_stmt.type, false)
-            }
-        }
-        for s in st.body {
-            compile_statement(comp, new_proc, s.derived_statement)
-        }
-        pop(&comp.proc_scopes)
-        end_scope(comp, new_proc, true)
-
-        last_st := st.body[len(st.body)-1]
-        if _, is_return := last_st.derived_statement.(^ast.Return_Statement); !is_return {
-            emit_byte(&new_proc.chunk, byte(Op_Code.RET))
-        }
-
-        proc_sym_type, _ := mem.new(symbol.Builtin_Symbol_Type)
-        proc_sym_type.type = tokenizer.Token_Kind.PROC
-        sym := symbol.Symbol{ new_proc.name, proc_sym_type, false, comp.curr_scope, len(comp.procs) }
-
-        append(&comp.sym_table.symbols, sym)
-        append(&comp.procs, new_proc)
-
     case ^ast.Return_Statement:
         if st.expr != nil {
             compile_expression(comp, curr_proc, st.expr.derived_expression)
         }
         emit_byte(&curr_proc.chunk, byte(Op_Code.RET))
+    case:
+        fmt.eprintfln("[compiler] Unhandled statement: %v", st)
     }
 }
 
@@ -363,7 +364,11 @@ make_array :: proc (arr_type_info: ast.Array_Type, mutable: bool) -> object.Arra
     case ^ast.Array_Type:
         // TODO: multi-dimensional arrays
     case ^ast.Identifier_Type:
+        // TODO: user types
     case ^ast.Alias_Type:
+        // TODO: necessary?
+    case ^ast.Enum_Type:
+        // TODO: necessary?
     case ^ast.Invalid_Type:
     }
 
@@ -371,17 +376,6 @@ make_array :: proc (arr_type_info: ast.Array_Type, mutable: bool) -> object.Arra
 }
 
 make_global :: proc(comp: ^Compiler, name: string, type: ^ast.Type_Specifier, mutable: bool) {
-    //type_tok: tokenizer.Token_Kind
-    //switch t in type.derived_type {
-    //case ^ast.Builtin_Type:
-    //    type_tok = t.type
-    //case ^ast.Array_Type:
-    //    type_tok = tokenizer.Token_Kind.ARRAY
-    //case ^ast.Identifier_Type:
-    //    type_tok
-    //case ^ast.Invalid_Type:
-    //    type_tok = tokenizer.Token_Kind.INVALID
-    //}
     sym_type := symbol.make_symbol_type(type.start, type)
     val: object.Global
     switch st in sym_type {
@@ -424,6 +418,14 @@ make_global :: proc(comp: ^Compiler, name: string, type: ^ast.Type_Specifier, mu
         }
     case ^symbol.Alias_Symbol_Type:
         ts := symbol.type_specifier_from_symbol_type(st.subtype)
+        make_global(comp, name, ts, mutable)
+        ast.type_specifier_destroy(ts.derived_type)
+        symbol.symbol_type_destroy(&sym_type)
+        return
+    case ^symbol.Enum_Symbol_Type:
+        ZERO_POS :: tokenizer.Pos{ 0, 0, 0 }
+        ts := ast.new(ast.Builtin_Type, ZERO_POS, ZERO_POS)
+        ts.type = .TYPE_INTEGER
         make_global(comp, name, ts, mutable)
         ast.type_specifier_destroy(ts.derived_type)
         symbol.symbol_type_destroy(&sym_type)
@@ -472,6 +474,9 @@ make_local :: proc(comp: ^Compiler, name: string, type: ^ast.Type_Specifier, mut
         val.value = arr
     case ^symbol.Identifier_Symbol_Type:
     case ^symbol.Alias_Symbol_Type:
+    case ^symbol.Enum_Symbol_Type:
+        val.type = .INTEGER
+        val.value = i64(0)
     }
     val.mutable = sym.mutable
     val.scope = comp.curr_scope
@@ -627,6 +632,29 @@ compile_expression :: proc(comp: ^Compiler, curr_proc: ^proc_lib.Procedure, expr
         emit_byte(&curr_proc.chunk, byte(get_op))
         emit_bytes(&curr_proc.chunk, u16(idx))
         emit_byte(&curr_proc.chunk, byte(Op_Code.GETARR))
+
+    case ^ast.Selector:
+        sym, _ := resolve_symbol(comp, e.ident)
+        switch sym_type in sym.type {
+        case ^symbol.Builtin_Symbol_Type:
+        case ^symbol.Alias_Symbol_Type:
+        case ^symbol.Identifier_Symbol_Type:
+        case ^symbol.Array_Symbol_Type:
+        case ^symbol.Enum_Symbol_Type:
+            field, ok := e.field.derived_expression.(^ast.Identifier)
+            if !ok {
+                fmt.eprintln("[compiler] Unable to resolve enum field")
+                return
+            }
+            enum_val : i64 = sym_type.fields[field.name]
+            push_obj := object.Object{ .INTEGER, enum_val, false, 0 }
+            emit_constant(&curr_proc.chunk, push_obj)
+        case:
+            fmt.eprintln("[compiler] Unknown Symbol Type for Selector expression")
+        }
+
+    case:
+        fmt.eprintfln("[compiler] Unhandled expression: %v", e)
     }
 }
 

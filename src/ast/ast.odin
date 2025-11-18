@@ -194,7 +194,7 @@ Array_Type :: struct {
 
 Enum_Type :: struct {
     using node: Type_Specifier,
-    fields: map[string]int,
+    fields: map[string]i64,
 }
 
 Invalid_Type :: struct {

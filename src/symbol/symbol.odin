@@ -47,21 +47,22 @@ Array_Symbol_Type :: struct {
 }
 
 Enum_Symbol_Type :: struct {
-    fields: map[string]int,
+    fields: map[string]i64,
 }
 
 make_symbol_type_pos :: proc(pos: tokenizer.Pos, type_spec: ^ast.Type_Specifier) -> Symbol_Type {
     type: Symbol_Type
-    #partial switch t in type_spec.derived_type {
+    switch t in type_spec.derived_type {
     case ^ast.Builtin_Type:
         type, _ = mem.new(Builtin_Symbol_Type)
         type.(^Builtin_Symbol_Type).type = t.type
+
     case ^ast.Enum_Type:
         type, _ = mem.new(Enum_Symbol_Type)
-        //type.(^Enum_Symbol_Type).fields = copy(t.fields)
         for name, val in t.fields {
             type.(^Enum_Symbol_Type).fields[name] = val
         }
+
     case ^ast.Array_Type:
         type, _ = mem.new(Array_Symbol_Type)
         #partial switch arr_type in t.type.derived_type {
@@ -79,16 +80,25 @@ make_symbol_type_pos :: proc(pos: tokenizer.Pos, type_spec: ^ast.Type_Specifier)
     case ^ast.Alias_Type:
         type, _ = mem.new(Alias_Symbol_Type)
         type.(^Alias_Symbol_Type).subtype = make_symbol_type_pos(pos, t.subtype)
+    case ^ast.Invalid_Type:
+        type = nil
     }
     return type
 }
 
 make_symbol_type_no_pos :: proc(type_spec: ^ast.Type_Specifier) -> Symbol_Type {
     type: Symbol_Type
-    #partial switch t in type_spec.derived_type {
+    switch t in type_spec.derived_type {
     case ^ast.Builtin_Type:
         type, _ = mem.new(Builtin_Symbol_Type)
         type.(^Builtin_Symbol_Type).type = t.type
+
+    case ^ast.Enum_Type:
+        type, _ = mem.new(Enum_Symbol_Type)
+        for name, val in t.fields {
+            type.(^Enum_Symbol_Type).fields[name] = val
+        }
+
     case ^ast.Array_Type:
         type, _ = mem.new(Array_Symbol_Type)
         #partial switch arr_type in t.type.derived_type {
@@ -105,6 +115,8 @@ make_symbol_type_no_pos :: proc(type_spec: ^ast.Type_Specifier) -> Symbol_Type {
     case ^ast.Alias_Type:
         type, _ = mem.new(Alias_Symbol_Type)
         type.(^Alias_Symbol_Type).subtype = make_symbol_type_no_pos(t.subtype)
+    case ^ast.Invalid_Type:
+        type = nil
     }
     return type
 }
@@ -158,7 +170,10 @@ type_specifier_from_symbol_type :: proc(st: Symbol_Type) -> ^ast.Type_Specifier 
         return at
     case ^Enum_Symbol_Type:
         et := ast.new(ast.Enum_Type, ZERO_POS, ZERO_POS)
-        et.fields = sym_type.fields
+        //et.fields = sym_type.fields
+        for name, val in sym_type.fields {
+            et.fields[name] = val
+        }
         return et
     }
     it := ast.new(ast.Builtin_Type, ZERO_POS, ZERO_POS)
