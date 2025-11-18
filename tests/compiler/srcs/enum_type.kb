@@ -1,0 +1,19 @@
+type NpcState: enum {
+    IDLE,
+    WALKING,
+    RUNNING,
+    RUNNING2,
+    PATROLLING,
+    DRINKING = 42,
+    EATING,
+};
+
+var current_state: NpcState = NpcState.IDLE;
+
+if current_state == NpcState.DRINKING {
+    println("What you drinking there?");
+} else if current_state == NpcState.EATING {
+    println("Lunchtime, eh?");
+} else {
+    println("Nothing to report.");
+}
