@@ -3,7 +3,7 @@
 Kobold is a scripting language. It is a strongly-typed, procedural language that is currently in the very early stages
 of development.
 
-Version: **0.0.47**
+Version: **0.0.48**
 
 ## Building
 
@@ -123,6 +123,41 @@ type Foo: uint;
 var bar: Foo = 25191002u;
 
 println("bar: ", bar);      // prints "bar: 25191002"
+```
+
+### Enum Type
+
+An `enum` is a type that contains a number of named constant values. An `enum` can be defined by using the `type`
+keyword followed by the name, a colon, the `enum` keyword, and a list of field names enclosed in braces, ended with a
+semicolon.
+
+```
+type FooEnum: enum {
+    FOO0,   // == 0
+    FOO1,   // == 1
+    FOO2,   // == 2
+};
+```
+
+The `enum` is backed by a 64-bit integer. Each field holds an incremental value starting at 0. Fields can be explicitly
+set to arbitrary integer values.
+
+```
+type BarEnum: enum {
+    BAR0,       // == 0
+    BAR1 = 7,   // == 7
+    BAR2,       // == 8
+    BAR3,       // == 9
+    BAR4 = 42,  // == 42
+    BAR5,       // == 43
+};
+```
+
+To select an enum field, use the selector syntax `<EnumName>.<FIELDNAME>`
+
+```
+var foo: FooEnum = FooEnum.FOO1;
+var bar := BarEnum.BAR3;
 ```
 
 ## Operators
@@ -451,7 +486,7 @@ The following is a list of items that are planned for the language before hittin
     - [ ] `matrix`
     - [ ] Collection Accessing
 - [ ] User-defined Types
-    - [ ] `type`-alias
-    - [ ] `enum`
+    - [X] `type`-alias
+    - [X] `enum`
     - [ ] `record`
     - [ ] `range`
