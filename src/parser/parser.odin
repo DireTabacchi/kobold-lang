@@ -391,35 +391,86 @@ parse_type_decl :: proc(p: ^Parser) -> ^ast.Statement {
     //return nil
 }
 
-parse_parameter_list :: proc(p: ^Parser) -> []^ast.Statement {
-    pl: [dynamic]^ast.Statement
-    for p.curr_tok.type != .R_PAREN {
-        start_pos := p.curr_tok.pos
-        param_name := expect_token(p, .IDENTIFIER)
-        expect_token(p, .COLON)
-        type_spec := parse_type_specifier(p)
+parse_enum_decl :: proc(p: ^Parser) -> ^ast.Type_Specifier {
+    tok := advance_token(p)
+    start_pos := tok.pos
+    #partial switch tok.type {
+    case .ENUM:
+        expect_token(p, .L_BRACE)
+        enum_fields := make(map[string]i64)
+        curr_tok := advance_token(p)
+        field_val: i64 = 0
+        for curr_tok.type != .R_BRACE {
+            #partial switch curr_tok.type {
+            case .IDENTIFIER:
+                if p.curr_tok.type == .ASSIGN {
+                    advance_token(p)
+                    field_val_tok := advance_token(p)
+                    field_val, _ = strconv.parse_i64(field_val_tok.text, 10)
+                }
+                enum_fields[curr_tok.text] = field_val
+                field_val += 1
+            case .COMMA:
+                // Do nothing for comma, but is valid syntax
+            case:
+                fmt.printfln("[parse_enum_decl] unknown token`%s`", curr_tok.text)
+            }
 
-        pd := ast.new(ast.Parameter_Declarator, start_pos, end_pos(p.prev_tok))
-        pd.name = param_name.text
-        pd.type = type_spec
-        append(&pl, pd)
+            curr_tok = advance_token(p)
+        }
+        expect_token(p, .SEMICOLON)
+        et := ast.new(ast.Enum_Type, start_pos, end_pos(p.prev_tok))
+        et.fields = enum_fields
 
-        param_symbol: symbol.Symbol
-        param_symbol.name = pd.name
-        param_symbol.mutable = false
-        param_symbol.scope = p.curr_scope
-        param_symbol.id = len(p.sym_table.symbols)
-        param_symbol.type = symbol.make_symbol_type(start_pos, type_spec)
-        append(&p.sym_table.symbols, param_symbol)
+        return et
+    case:
+        fmt.println("[parse_enum_decl] error")
+    }
+    it := ast.new(ast.Invalid_Type, start_pos, end_pos(p.prev_tok))
+    return it
+}
 
-        next_tok := peek_token(p)
-        if p.curr_tok.type == .COMMA && next_tok.type == .R_PAREN {
-            advance_token(p)
-        } else if next_tok.type == .IDENTIFIER {
-            expect_token(p, .COMMA)
+parse_assign_statement :: proc(p: ^Parser, expect_semicolon: bool) -> ^ast.Statement {
+    start_pos := p.curr_tok.pos
+    start_idx := p.curr_idx
+    ident := parse_identifier(p)
+    if id, ok := ident.derived_expression.(^ast.Identifier); ok {
+        sym, resolved := resolve_symbol(p, id.name)
+        if resolved {
+            switch sym_type in sym.type {
+            case ^symbol.Builtin_Symbol_Type:
+            case ^symbol.Identifier_Symbol_Type:
+            case ^symbol.Alias_Symbol_Type:
+            case ^symbol.Enum_Symbol_Type:
+            case ^symbol.Array_Symbol_Type:
+                if p.curr_tok.type == .L_BRACKET {
+                    reset_to_token(p, start_idx)
+                    free(ident)
+                    ident = parse_accessor(p)
+                }
+            }
         }
     }
-    return pl[:]
+    assign_tok := advance_token(p)
+    expr := parse_expression(p)
+    if expect_semicolon {
+        expect_token(p, .SEMICOLON)
+    }
+    #partial switch assign_tok.type {
+    case .ASSIGN:
+        as := ast.new(ast.Assignment_Statement, start_pos, end_pos(p.prev_tok))
+        as.ident = ident
+        as.value = expr
+        return as
+    case .ASSIGN_ADD ..= .ASSIGN_MOD_FLOOR:
+        aos := ast.new(ast.Assignment_Operation_Statement, start_pos, end_pos(p.prev_tok))
+        aos.ident = ident
+        aos.op = assign_tok.type
+        aos.value = expr
+        return aos
+    }
+    is := ast.new(ast.Invalid_Statement, start_pos, end_pos(p.prev_tok))
+    return is
 }
 
 parse_return_statement :: proc(p: ^Parser) -> ^ast.Statement {
@@ -545,6 +596,37 @@ parse_else_if_statement :: proc(p: ^Parser) -> ^ast.Statement {
     }
 }
 
+parse_parameter_list :: proc(p: ^Parser) -> []^ast.Statement {
+    pl: [dynamic]^ast.Statement
+    for p.curr_tok.type != .R_PAREN {
+        start_pos := p.curr_tok.pos
+        param_name := expect_token(p, .IDENTIFIER)
+        expect_token(p, .COLON)
+        type_spec := parse_type_specifier(p)
+
+        pd := ast.new(ast.Parameter_Declarator, start_pos, end_pos(p.prev_tok))
+        pd.name = param_name.text
+        pd.type = type_spec
+        append(&pl, pd)
+
+        param_symbol: symbol.Symbol
+        param_symbol.name = pd.name
+        param_symbol.mutable = false
+        param_symbol.scope = p.curr_scope
+        param_symbol.id = len(p.sym_table.symbols)
+        param_symbol.type = symbol.make_symbol_type(start_pos, type_spec)
+        append(&p.sym_table.symbols, param_symbol)
+
+        next_tok := peek_token(p)
+        if p.curr_tok.type == .COMMA && next_tok.type == .R_PAREN {
+            advance_token(p)
+        } else if next_tok.type == .IDENTIFIER {
+            expect_token(p, .COMMA)
+        }
+    }
+    return pl[:]
+}
+
 parse_block :: proc(p: ^Parser, do_scoping: bool) -> []^ast.Statement {
     if do_scoping {
         increment_scope(p)
@@ -563,49 +645,6 @@ parse_block :: proc(p: ^Parser, do_scoping: bool) -> []^ast.Statement {
     }
 
     return block[:]
-}
-
-parse_assign_statement :: proc(p: ^Parser, expect_semicolon: bool) -> ^ast.Statement {
-    start_pos := p.curr_tok.pos
-    start_idx := p.curr_idx
-    ident := parse_identifier(p)
-    if id, ok := ident.derived_expression.(^ast.Identifier); ok {
-        sym, resolved := resolve_symbol(p, id.name)
-        if resolved {
-            switch sym_type in sym.type {
-            case ^symbol.Builtin_Symbol_Type:
-            case ^symbol.Identifier_Symbol_Type:
-            case ^symbol.Alias_Symbol_Type:
-            case ^symbol.Enum_Symbol_Type:
-            case ^symbol.Array_Symbol_Type:
-                if p.curr_tok.type == .L_BRACKET {
-                    reset_to_token(p, start_idx)
-                    free(ident)
-                    ident = parse_accessor(p)
-                }
-            }
-        }
-    }
-    assign_tok := advance_token(p)
-    expr := parse_expression(p)
-    if expect_semicolon {
-        expect_token(p, .SEMICOLON)
-    }
-    #partial switch assign_tok.type {
-    case .ASSIGN:
-        as := ast.new(ast.Assignment_Statement, start_pos, end_pos(p.prev_tok))
-        as.ident = ident
-        as.value = expr
-        return as
-    case .ASSIGN_ADD ..= .ASSIGN_MOD_FLOOR:
-        aos := ast.new(ast.Assignment_Operation_Statement, start_pos, end_pos(p.prev_tok))
-        aos.ident = ident
-        aos.op = assign_tok.type
-        aos.value = expr
-        return aos
-    }
-    is := ast.new(ast.Invalid_Statement, start_pos, end_pos(p.prev_tok))
-    return is
 }
 
 expression_type :: proc(p: ^Parser, expr: ^ast.Expression) -> ^ast.Type_Specifier {
@@ -749,45 +788,6 @@ parse_type_specifier :: proc(p: ^Parser) -> ^ast.Type_Specifier {
         at.length = cap_val
         at.type = arr_type
         return at
-    }
-    it := ast.new(ast.Invalid_Type, start_pos, end_pos(p.prev_tok))
-    return it
-}
-
-parse_enum_decl :: proc(p: ^Parser) -> ^ast.Type_Specifier {
-    tok := advance_token(p)
-    start_pos := tok.pos
-    #partial switch tok.type {
-    case .ENUM:
-        expect_token(p, .L_BRACE)
-        enum_fields := make(map[string]i64)
-        curr_tok := advance_token(p)
-        field_val: i64 = 0
-        for curr_tok.type != .R_BRACE {
-            #partial switch curr_tok.type {
-            case .IDENTIFIER:
-                if p.curr_tok.type == .ASSIGN {
-                    advance_token(p)
-                    field_val_tok := advance_token(p)
-                    field_val, _ = strconv.parse_i64(field_val_tok.text, 10)
-                }
-                enum_fields[curr_tok.text] = field_val
-                field_val += 1
-            case .COMMA:
-                // Do nothing for comma, but is valid syntax
-            case:
-                fmt.printfln("[parse_enum_decl] unknown token`%s`", curr_tok.text)
-            }
-
-            curr_tok = advance_token(p)
-        }
-        expect_token(p, .SEMICOLON)
-        et := ast.new(ast.Enum_Type, start_pos, end_pos(p.prev_tok))
-        et.fields = enum_fields
-
-        return et
-    case:
-        fmt.println("[parse_enum_decl] error")
     }
     it := ast.new(ast.Invalid_Type, start_pos, end_pos(p.prev_tok))
     return it
