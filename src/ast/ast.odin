@@ -192,6 +192,11 @@ Array_Type :: struct {
     type: ^Type_Specifier,
 }
 
+Enum_Type :: struct {
+    using node: Type_Specifier,
+    fields: map[string]int,
+}
+
 Invalid_Type :: struct {
     using node: Type_Specifier,
 }
@@ -231,6 +236,7 @@ Any_Type :: union {
     ^Identifier_Type,
     ^Alias_Type,
     ^Array_Type,
+    ^Enum_Type,
 }
 
 new :: proc($T: typeid, start, end: tokenizer.Pos) -> ^T {
@@ -404,6 +410,9 @@ expression_destroy :: proc(expr: Any_Expression) {
     case ^Array_Accessor:
         expression_destroy(e.index.derived_expression)
         free(e)
+    case ^Selector:
+        expression_destroy(e.field.derived_expression)
+        free(e)
     }
 }
 
@@ -411,17 +420,25 @@ type_specifier_destroy :: proc(type_spec: Any_Type) {
     switch ts in type_spec {
     case ^Invalid_Type:
         free(ts)
+
     case ^Builtin_Type:
         free(ts)
+
     case ^Identifier_Type:
         free(ts)
+
     case ^Alias_Type:
         if ts.subtype != nil {
             type_specifier_destroy(ts.subtype.derived_type)
         }
         free(ts)
+
     case ^Array_Type:
         type_specifier_destroy(ts.type.derived_type)
+        free(ts)
+
+    case ^Enum_Type:
+        delete(ts.fields)
         free(ts)
     }
 }

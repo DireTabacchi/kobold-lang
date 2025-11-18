@@ -371,6 +371,18 @@ parse_type_decl :: proc(p: ^Parser) -> ^ast.Statement {
         at := ast.new(ast.Alias_Type, name.pos, end_pos(p.prev_tok))
         at.subtype = ts
         type = at
+
+        symbol_type := symbol.make_symbol_type(start_pos, type)
+        type_symbol := symbol.Symbol{ name.text, symbol_type, false, p.curr_scope, len(p.sym_table.symbols) }
+        append(&p.sym_table.symbols, type_symbol)
+
+    case .ENUM:
+        ed := parse_enum_decl(p)
+        type = ed
+
+        enum_sym_type := symbol.make_symbol_type(start_pos, ed)
+        enum_symbol := symbol.Symbol{ name.text, enum_sym_type, false, p.curr_scope, len(p.sym_table.symbols) }
+        append(&p.sym_table.symbols, enum_symbol)
     }
     td := ast.new(ast.Type_Declarator, start_pos, end_pos(p.prev_tok))
     td.name = name.text
@@ -564,6 +576,7 @@ parse_assign_statement :: proc(p: ^Parser, expect_semicolon: bool) -> ^ast.State
             case ^symbol.Builtin_Symbol_Type:
             case ^symbol.Identifier_Symbol_Type:
             case ^symbol.Alias_Symbol_Type:
+            case ^symbol.Enum_Symbol_Type:
             case ^symbol.Array_Symbol_Type:
                 if p.curr_tok.type == .L_BRACKET {
                     reset_to_token(p, start_idx)
@@ -722,6 +735,45 @@ parse_type_specifier :: proc(p: ^Parser) -> ^ast.Type_Specifier {
         at.length = cap_val
         at.type = arr_type
         return at
+    }
+    it := ast.new(ast.Invalid_Type, start_pos, end_pos(p.prev_tok))
+    return it
+}
+
+parse_enum_decl :: proc(p: ^Parser) -> ^ast.Type_Specifier {
+    tok := advance_token(p)
+    start_pos := tok.pos
+    #partial switch tok.type {
+    case .ENUM:
+        expect_token(p, .L_BRACE)
+        enum_fields := make(map[string]int)
+        curr_tok := advance_token(p)
+        field_val := 0
+        for curr_tok.type != .R_BRACE {
+            #partial switch curr_tok.type {
+            case .IDENTIFIER:
+                if p.curr_tok.type == .ASSIGN {
+                    advance_token(p)
+                    field_val_tok := advance_token(p)
+                    field_val, _ = strconv.parse_int(field_val_tok.text, 10)
+                }
+                enum_fields[curr_tok.text] = field_val
+                field_val += 1
+            case .COMMA:
+                // Do nothing for comma, but is valid syntax
+            case:
+                fmt.printfln("[parse_enum_decl] unknown token`%s`", curr_tok.text)
+            }
+
+            curr_tok = advance_token(p)
+        }
+        expect_token(p, .SEMICOLON)
+        et := ast.new(ast.Enum_Type, start_pos, end_pos(p.prev_tok))
+        et.fields = enum_fields
+
+        return et
+    case:
+        fmt.println("[parse_enum_decl] error")
     }
     it := ast.new(ast.Invalid_Type, start_pos, end_pos(p.prev_tok))
     return it

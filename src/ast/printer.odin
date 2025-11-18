@@ -238,7 +238,7 @@ print_stmt :: proc(ap: ^AstPrinter, stmt: Any_Statement, last: bool) {
         write_indents(ap)
         strings.write_string(&ap.builder, "cond:\n")
         swap_last_indent(ap, IndentPattern.MID)
-        print_expr(ap, st.cond.derived_expression, false)
+        print_expr(ap, st.cond.derived_expression, true)
         swap_last_indent(ap, IndentPattern.BRANCH)
         write_indents(ap)
         strings.write_string(&ap.builder, "consequent:\n")
@@ -275,7 +275,7 @@ print_stmt :: proc(ap: ^AstPrinter, stmt: Any_Statement, last: bool) {
         write_indents(ap)
         strings.write_string(&ap.builder, "cond:\n")
         swap_last_indent(ap, IndentPattern.MID)
-        print_expr(ap, st.cond.derived_expression, false)
+        print_expr(ap, st.cond.derived_expression, true)
         swap_last_indent(ap, IndentPattern.BRANCH)
         write_indents(ap)
         strings.write_string(&ap.builder, "consequent:\n")
@@ -466,6 +466,30 @@ print_type_specifier :: proc(ap: ^AstPrinter, type: Any_Type) {
         pop(&ap.indents)
         pop(&ap.indents)
 
+    case ^Enum_Type:
+        append(&ap.indents, IndentPattern.LAST)
+        write_indents(ap)
+        strings.write_string(&ap.builder, "Enum:\n")
+        swap_last_indent(ap, IndentPattern.NONE)
+        append(&ap.indents, IndentPattern.LAST)
+        write_indents(ap)
+        strings.write_string(&ap.builder, "fields:\n")
+        swap_last_indent(ap, IndentPattern.NONE)
+        append(&ap.indents, IndentPattern.BRANCH)
+        fields_len := len(t.fields)
+        curr_idx := 0
+        for field, val in t.fields {
+            if curr_idx == fields_len - 1 {
+                swap_last_indent(ap, IndentPattern.LAST)
+            }
+            write_indents(ap)
+            fmt.sbprintfln(&ap.builder, "%s: %d", field, val)
+            curr_idx += 1
+        }
+        pop(&ap.indents)
+        pop(&ap.indents)
+        pop(&ap.indents)
+
     case ^Invalid_Type:
         append(&ap.indents, IndentPattern.LAST)
         write_indents(ap)
@@ -582,14 +606,24 @@ print_expr :: proc(ap: ^AstPrinter, expr: Any_Expression, last: bool) {
     case ^Selector:
         // TODO: When enums/records are implemented
         //write_tabs(ap)
-        strings.write_string(&ap.builder, "\u2514Identifier Selector:\n")
+        append_last_or_branch(ap, last)
+        write_indents(ap)
+        strings.write_string(&ap.builder, "Identifier Selector:\n")
+        swap_mid_or_none(ap, last)
+        append(&ap.indents, IndentPattern.BRANCH)
         //ap.indent_lvl += 1
         //defer ap.indent_lvl -= 1
         //write_tabs(ap)
-        fmt.sbprintfln(&ap.builder, "\u251Cident: %s", ex.ident)
+        write_indents(ap)
+        fmt.sbprintfln(&ap.builder, "ident: %s", ex.ident)
         //write_tabs(ap)
-        strings.write_string(&ap.builder, "\u2514field:\n")
+        swap_last_indent(ap, IndentPattern.LAST)
+        write_indents(ap)
+        strings.write_string(&ap.builder, "field:\n")
+        swap_last_indent(ap, IndentPattern.NONE)
         print_expr(ap, ex.field.derived_expression, true)
+        pop(&ap.indents)
+        pop(&ap.indents)
 
     case ^Array_Accessor:
         append_last_or_branch(ap, last)

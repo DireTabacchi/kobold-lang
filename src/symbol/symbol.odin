@@ -26,6 +26,7 @@ Symbol_Type :: union {
     ^Identifier_Symbol_Type,
     ^Array_Symbol_Type,
     ^Alias_Symbol_Type,
+    ^Enum_Symbol_Type,
 }
 
 Builtin_Symbol_Type :: struct {
@@ -45,12 +46,22 @@ Array_Symbol_Type :: struct {
     length: int,
 }
 
+Enum_Symbol_Type :: struct {
+    fields: map[string]int,
+}
+
 make_symbol_type_pos :: proc(pos: tokenizer.Pos, type_spec: ^ast.Type_Specifier) -> Symbol_Type {
     type: Symbol_Type
     #partial switch t in type_spec.derived_type {
     case ^ast.Builtin_Type:
         type, _ = mem.new(Builtin_Symbol_Type)
         type.(^Builtin_Symbol_Type).type = t.type
+    case ^ast.Enum_Type:
+        type, _ = mem.new(Enum_Symbol_Type)
+        //type.(^Enum_Symbol_Type).fields = copy(t.fields)
+        for name, val in t.fields {
+            type.(^Enum_Symbol_Type).fields[name] = val
+        }
     case ^ast.Array_Type:
         type, _ = mem.new(Array_Symbol_Type)
         #partial switch arr_type in t.type.derived_type {
@@ -119,6 +130,9 @@ symbol_type_destroy :: proc(sym_type: ^Symbol_Type) {
     case ^Alias_Symbol_Type:
         symbol_type_destroy(&t.subtype)
         free(t)
+    case ^Enum_Symbol_Type:
+        delete(t.fields)
+        free(t)
     }
 }
 
@@ -142,6 +156,10 @@ type_specifier_from_symbol_type :: proc(st: Symbol_Type) -> ^ast.Type_Specifier 
         at := ast.new(ast.Alias_Type, ZERO_POS, ZERO_POS)
         at.subtype = type_specifier_from_symbol_type(sym_type.subtype)
         return at
+    case ^Enum_Symbol_Type:
+        et := ast.new(ast.Enum_Type, ZERO_POS, ZERO_POS)
+        et.fields = sym_type.fields
+        return et
     }
     it := ast.new(ast.Builtin_Type, ZERO_POS, ZERO_POS)
     return it
