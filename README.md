@@ -16,7 +16,7 @@ Version: **0.0.48**
 1. Ensure that the Odin compiler is installed.
 2. Clone this repository.
 ```
-$ git clone https://github.com/DireTabacchi/kobold-lang.git
+$ git clone https://codeberg.com/DireTabacchi/kobold-lang.git
 ```
 3. Run the build script.
 ```
